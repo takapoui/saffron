@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "saffron"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["matplotlib", "pandas", "pdfplumber", "requests", "tiktoken", "torch", "transformers"]
+
+[project.optional-dependencies]
+dev = ["ruff>=0.8.4", "pyright>=1.1.390", "pytest", "pre-commit"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+# Target Python 3.11+
+target-version = "py311"
+line-length = 100
+
+# Exclude common directories
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".pytest_cache",
+    ".ruff_cache",
+]
+
+[tool.ruff.lint]
+# Enable recommended rules
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+
+# Ignore specific rules if needed
+ignore = ["N803", "N806", "N812"]
+
+[tool.ruff.format]
+# Use double quotes for strings
+quote-style = "double"
+
+[tool.pyright]
+# Python version
+pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"
+
+# Type checking mode
+typeCheckingMode = "basic"
+
+# Include/exclude paths
+include = ["src", "tests"]
+exclude = [
+    "**/__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+]
+
+# Reporting
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportPrivateImportUsage = false

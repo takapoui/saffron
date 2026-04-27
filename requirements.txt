@@ -1,0 +1,7 @@
+# Development tools (linting and type checking)
+ruff>=0.8.4
+pyright>=1.1.390
+pre-commit
+
+# Testing
+pytest
