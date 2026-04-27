@@ -1,6 +1,22 @@
-from saffron.model import Model
+import pytest
+import torch
+
+from saffron.model import Model, ModelConfig
 
 
-def test_model():
-    model = Model()
-    assert model is not None
+@pytest.fixture
+def config():
+    return ModelConfig(
+        vocab_size=1000,
+        n_embd=96,
+        block_size=64,
+        n_layer=12,
+        n_head=12,
+    )
+
+
+def test_forward_shape(config: ModelConfig) -> None:
+    model = Model(config)
+    idx = torch.randint(0, config.vocab_size, (2, 10))  # batch=2, seq_len=10
+    logits, _ = model(idx)
+    assert logits.shape == (2, 10, config.vocab_size)  # (batch, seq_len, vocab_size)

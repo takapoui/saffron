@@ -1,4 +1,5 @@
 # Development tools (linting and type checking)
+ipykernel
 ruff>=0.8.4
 pyright>=1.1.390
 pre-commit

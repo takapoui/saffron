@@ -50,8 +50,8 @@ lint:
 	PATH="$(NODE_PATH_PREFIX)" $(PYRIGHT)
 
 lint-fix:
-	$(RUFF) check . --fix
 	$(RUFF) format .
+	$(RUFF) check . --fix
 
 test:
 	PYTHONPATH=src $(PYTEST) tests/ -v

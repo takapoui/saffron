@@ -62,7 +62,7 @@ venvPath = "."
 venv = ".venv"
 
 # Type checking mode
-typeCheckingMode = "basic"
+typeCheckingMode = "strict"
 
 # Include/exclude paths
 include = ["src", "tests"]
