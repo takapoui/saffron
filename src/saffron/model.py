@@ -127,8 +127,11 @@ class Model(nn.Module):
         return logits, loss
 
     def save_to_file(self, fn: Path) -> None:
-        raise NotImplementedError
+        torch.save({"config": self.config, "model": self.state_dict()}, fn)
 
     @classmethod
     def load_from_file(cls, fn: Path) -> Model:
-        raise NotImplementedError
+        checkpoint = torch.load(fn, weights_only=False)
+        model = cls(checkpoint["config"])
+        model.load_state_dict(checkpoint["model"])
+        return model
