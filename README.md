@@ -10,6 +10,15 @@ make install      # creates .venv and installs all dependencies
 make kernel       # registers the Jupyter kernel
 ```
 
+## Usage
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/prep_data.py \
+    --dataset HuggingFaceFW/fineweb-edu \
+    --name sample-10BT \
+    --shard_size 100000000
+```
+
 ## Development
 
 ```bash
