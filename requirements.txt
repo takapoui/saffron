@@ -1,4 +1,15 @@
-# Development tools (linting and type checking)
+# Runtime
+datasets
+matplotlib
+numpy
+pandas
+pdfplumber
+requests
+tiktoken
+torch
+transformers
+
+# Development
 ipykernel
 ruff>=0.8.4
 pyright>=1.1.390
