@@ -13,7 +13,7 @@ def configure_adamw(
     model: Model,
     weight_decay: float,
     learning_rate: float,
-    device: str,
+    device_type: str,
 ) -> torch.optim.AdamW:
     param_dict = {name: param for name, param in model.named_parameters() if param.requires_grad}
     decay_params = [param for param in param_dict.values() if param.ndim >= 2]
@@ -31,7 +31,6 @@ def configure_adamw(
         f"{sum(param.numel() for param in no_decay_params)}"
     )
 
-    device_type = torch.device(device).type
     use_fused = device_type == "cuda" and "fused" in inspect.signature(torch.optim.AdamW).parameters
     logger.info(f"using fused AdamW: {use_fused}")
     return torch.optim.AdamW(

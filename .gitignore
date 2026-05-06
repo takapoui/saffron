@@ -217,6 +217,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# data and play notebooks
+# directories
 data/*
-playground
+playground/*
+checkpoints/*

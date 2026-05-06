@@ -1,4 +1,5 @@
 import argparse
+import logging
 from pathlib import Path
 
 import tiktoken
@@ -6,6 +7,7 @@ import tiktoken
 from saffron.dataloader import load_and_tokenize_dataset
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="stas/openwebtext-10k")
     parser.add_argument("--name", type=str, default="")

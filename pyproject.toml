@@ -62,7 +62,7 @@ venv = ".venv"
 typeCheckingMode = "strict"
 
 # Include/exclude paths
-include = ["src", "tests"]
+include = ["src", "tests", "scripts"]
 exclude = [
     "**/__pycache__",
     ".git",

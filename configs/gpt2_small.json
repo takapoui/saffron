@@ -1,0 +1,30 @@
+{
+    "model": {
+        "vocab_size": 50257,
+        "n_embd": 768,
+        "block_size": 1024,
+        "n_layer": 12,
+        "n_head": 12
+    },
+    "train": {
+        "max_steps": 19073,
+        "warmup_steps": 715,
+        "max_lr": 6e-4,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "total_batch_size": 524288,
+        "eval_loss_every": 250,
+        "eval_loss_steps": 20,
+        "eval_task_every": 1000,
+        "checkpoint_every": 5000,
+        "checkpoint_dir": "checkpoints/gpt2_small",
+        "resume_from": null,
+        "log_every": 10,
+        "wandb_project": null
+    },
+    "data": {
+        "data_root": "data/stas_openwebtext-10k",
+        "batch_size": 16,
+        "seq_len": 1024
+    }
+}
