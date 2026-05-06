@@ -43,6 +43,18 @@ class DataLoader:
         self.tokens = self._load_shard(self.current_shard)
         self.current_position = self.B * self.T * self.rank
 
+    def advance(self, tokens: int) -> None:
+        while tokens > 0:
+            remaining_in_shard = len(self.tokens) - self.current_position
+            if tokens < remaining_in_shard:
+                self.current_position += tokens
+                tokens = 0
+            else:
+                tokens -= remaining_in_shard
+                self.current_shard = (self.current_shard + 1) % len(self.shards)
+                self.tokens = self._load_shard(self.current_shard)
+                self.current_position = self.B * self.T * self.rank
+
     def next_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
         buf = self.tokens[self.current_position : self.current_position + self.B * self.T + 1]
         x, y = buf[:-1].view(self.B, self.T), buf[1:].view(self.B, self.T)

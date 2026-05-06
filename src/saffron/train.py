@@ -60,7 +60,7 @@ class Trainer:
         optimizer: torch.optim.AdamW,
         train_loader: DataLoader,
         val_loader: DataLoader,
-        config: TrainConfig,
+        train_config: TrainConfig,
         run_config: RunConfig,
     ) -> None:
         if run_config.use_ddp:
@@ -75,41 +75,47 @@ class Trainer:
         self.optimizer = optimizer
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.config = config
+        self.train_config = train_config
         self.run_config = run_config
 
         # master process
         self.master_process = run_config.ddp_rank == 0
 
         B, T = train_loader.B, train_loader.T
-        assert config.total_batch_size % (B * T * run_config.ddp_world_size) == 0, (
+        assert train_config.total_batch_size % (B * T * run_config.ddp_world_size) == 0, (
             "total_batch_size must be divisible by B * T * world_size"
         )
-        self.accumulation_steps = config.total_batch_size // (B * T * run_config.ddp_world_size)
+        self.accumulation_steps = train_config.total_batch_size // (
+            B * T * run_config.ddp_world_size
+        )
         if self.master_process:
             logger.info("Using gradient accumulation over %d steps.", self.accumulation_steps)
 
-        # reset optimizer parameters
-        if self.config.resume_from is None:
+        resume_from = train_config.resume_from
+        if resume_from is None:
             self.step = 0
             self.train_loader.reset()
-            self.val_loader.reset()
         else:
-            raise NotImplementedError
+            checkpoint = torch.load(resume_from, weights_only=False, map_location=run_config.device)
+            self.raw_model.load_state_dict(checkpoint["model_dict"])
+            self.optimizer.load_state_dict(checkpoint["optimizer_dict"])
+            self.step = checkpoint["step"] + 1
+            self.train_loader.reset()
+            self.train_loader.advance(checkpoint["step"] * train_config.total_batch_size)
 
     def train(self) -> None:
         self.model.train()
-        for step in range(self.step, self.config.max_steps):
-            if step % self.config.eval_loss_every == 0:
+        for step in range(self.step, self.train_config.max_steps):
+            if step % self.train_config.eval_loss_every == 0:
                 metrics = {"eval_loss": self._eval_loss()}
                 self._log(step, metrics)
 
-            if step % self.config.eval_task_every == 0:
+            if step % self.train_config.eval_task_every == 0:
                 metrics = self._eval_tasks()
                 if metrics:
                     self._log(step, metrics)
 
-            if self.master_process and step % self.config.checkpoint_every == 0:
+            if self.master_process and step % self.train_config.checkpoint_every == 0:
                 self._save_checkpoint(step)
 
             t0 = time.time()
@@ -136,12 +142,14 @@ class Trainer:
                 loss_tensor = torch.tensor(loss_accum, device=self.run_config.device)
                 torch.distributed.all_reduce(loss_tensor, op=torch.distributed.ReduceOp.AVG)  # type: ignore[reportUnknownMemberType]
                 loss_accum = loss_tensor.item()
-            norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_clip)
+            norm = torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(), self.train_config.grad_clip
+            )
             lr = get_lr_cosine(
                 step=step,
-                max_steps=self.config.max_steps,
-                max_lr=self.config.max_lr,
-                warmup_steps=self.config.warmup_steps,
+                max_steps=self.train_config.max_steps,
+                max_lr=self.train_config.max_lr,
+                warmup_steps=self.train_config.warmup_steps,
             )
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr
@@ -157,9 +165,9 @@ class Trainer:
                 "norm": norm.item(),
                 "lr": lr,
                 "loss": loss_accum,
-                "tok/sec": self.config.total_batch_size / (t1 - t0),
+                "tok/sec": self.train_config.total_batch_size / (t1 - t0),
             }
-            if step % self.config.log_every == 0:
+            if step % self.train_config.log_every == 0:
                 self._log(step, metrics)
 
     def _eval_loss(self) -> float:
@@ -167,12 +175,12 @@ class Trainer:
         self.model.eval()
         with torch.no_grad():
             val_loss_accum = 0.0
-            for _ in range(self.config.eval_loss_steps):
+            for _ in range(self.train_config.eval_loss_steps):
                 x, y = self.val_loader.next_batch()
                 x, y = x.to(self.run_config.device), y.to(self.run_config.device)
                 with torch.autocast(device_type=self.run_config.device_type, dtype=torch.bfloat16):
                     _, loss = self.model(x, y)
-                loss /= self.config.eval_loss_steps
+                loss /= self.train_config.eval_loss_steps
                 val_loss_accum += loss.item()
             if self.run_config.use_ddp:
                 val_loss_tensor = torch.tensor(val_loss_accum, device=self.run_config.device)
@@ -186,24 +194,17 @@ class Trainer:
         return {}
 
     def _save_checkpoint(self, step: int) -> None:
-        self.config.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        path = self.config.checkpoint_dir / f"ckpt_{step:06d}.pt"
+        self.train_config.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        path = self.train_config.checkpoint_dir / f"ckpt_{step:06d}.pt"
         obj = {
             "step": step,
-            "model": self.raw_model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
+            "model_dict": self.raw_model.state_dict(),
+            "optimizer_dict": self.optimizer.state_dict(),
             "model_config": self.raw_model.config,
-            "train_config": self.config,
-            "run_config": self.run_config,
+            "train_config": self.train_config,
         }
         torch.save(obj, path)
         logger.info(f"Saved checkpoint to {path}")
-
-    @classmethod
-    def from_checkpoint(cls, path: Path) -> Trainer:
-        # reconstructs model, optimizer, loader, resumes from step
-        # Don't forget to advance data loader to step * total_batch_size
-        raise NotImplementedError
 
     def _log(self, step: int, metrics: dict[str, float]) -> None:
         if self.master_process:

@@ -62,7 +62,7 @@ def main(
         B=data_config["batch_size"],
         T=data_config["seq_len"],
         data_root=Path(data_config["data_root"]),
-        rank=run_config.ddp_local_rank,
+        rank=run_config.ddp_rank,
         world_size=run_config.ddp_world_size,
         split="val",
     )
@@ -77,10 +77,9 @@ def main(
         optimizer=optimizer,
         train_loader=train_loader,
         val_loader=val_loader,
-        config=train_config,
+        train_config=train_config,
         run_config=run_config,
     )
-
     trainer.train()
 
     if run_config.use_ddp:
