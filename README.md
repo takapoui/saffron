@@ -10,13 +10,23 @@ make install      # creates .venv and installs all dependencies
 make kernel       # registers the Jupyter kernel
 ```
 
-## Usage
+## Data Preparation
 
 ```bash
 PYTHONPATH=src .venv/bin/python scripts/prep_data.py \
     --dataset HuggingFaceFW/fineweb-edu \
     --name sample-10BT \
     --shard_size 100000000
+```
+
+## Training
+
+```bash
+# single device (CPU, MPS, or CUDA)
+PYTHONPATH=src .venv/bin/python scripts/run_train.py --config configs/gpt2_small.json
+
+# multi GPU (e.g. 8 GPUs)
+PYTHONPATH=src torchrun --nproc_per_node=8 scripts/run_train.py --config configs/gpt2_small.json
 ```
 
 ## Development

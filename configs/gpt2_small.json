@@ -23,7 +23,7 @@
         "wandb_project": null
     },
     "data": {
-        "data_root": "data/stas_openwebtext-10k",
+        "data_root": "data/HuggingFaceFW_fineweb-edu",
         "batch_size": 16,
         "seq_len": 1024
     }
