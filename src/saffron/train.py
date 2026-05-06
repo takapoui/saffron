@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import torch
+import wandb
 from torch.nn.parallel import DistributedDataParallel
 
 from .dataloader import DataLoader
@@ -103,6 +105,10 @@ class Trainer:
             self.train_loader.reset()
             self.train_loader.advance(checkpoint["step"] * train_config.total_batch_size)
 
+        self.use_wandb = self.master_process and train_config.wandb_project is not None
+        if self.use_wandb:
+            wandb.init(project=train_config.wandb_project, config=dataclasses.asdict(train_config))
+
     def train(self) -> None:
         self.model.train()
         for step in range(self.step, self.train_config.max_steps):
@@ -169,6 +175,8 @@ class Trainer:
             }
             if step % self.train_config.log_every == 0:
                 self._log(step, metrics)
+        if self.use_wandb:
+            wandb.finish()
 
     def _eval_loss(self) -> float:
         self.val_loader.reset()
@@ -211,4 +219,5 @@ class Trainer:
             info = [f"step: {step:5d}"] + [f"{key}: {val:.4f}" for key, val in metrics.items()]
             logger.info(" | ".join(info))
 
-        # TODO wandb
+        if self.use_wandb:
+            wandb.log(metrics, step=step)

@@ -7,24 +7,24 @@
         "n_head": 12
     },
     "train": {
-        "max_steps": 19073,
-        "warmup_steps": 715,
+        "max_steps": 1000,
+        "warmup_steps": 100,
         "max_lr": 6e-4,
         "weight_decay": 0.1,
         "grad_clip": 1.0,
-        "total_batch_size": 524288,
-        "eval_loss_every": 250,
+        "total_batch_size": 8192,
+        "eval_loss_every": 50,
         "eval_loss_steps": 20,
-        "eval_task_every": 1000,
-        "checkpoint_every": 5000,
-        "checkpoint_dir": "checkpoints/gpt2_small",
+        "eval_task_every": 500,
+        "checkpoint_every": 500,
+        "checkpoint_dir": "checkpoints/gpt2_small_mps",
         "resume_from": null,
-        "log_every": 10,
+        "log_every": 1,
         "wandb_project": "saffron"
     },
     "data": {
-        "data_root": "data/HuggingFaceFW_fineweb-edu",
-        "batch_size": 16,
+        "data_root": "data/stas_openwebtext-10k",
+        "batch_size": 4,
         "seq_len": 1024
     }
 }
