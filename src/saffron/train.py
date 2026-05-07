@@ -12,6 +12,7 @@ import wandb
 from torch.nn.parallel import DistributedDataParallel
 
 from .dataloader import DataLoader
+from .hellaswag import evaluate_hellaswag
 from .model import Model
 from .optim import get_lr_cosine
 
@@ -198,7 +199,11 @@ class Trainer:
         return val_loss_accum
 
     def _eval_tasks(self) -> dict[str, float]:
-        # returns {"hellaswag": 0.42, ...}
+        if self.master_process:
+            hellaswag_accuracy = evaluate_hellaswag(
+                self.raw_model, self.run_config.device, self.run_config.device_type
+            )
+            return {"hellaswag": hellaswag_accuracy}
         return {}
 
     def _save_checkpoint(self, step: int) -> None:

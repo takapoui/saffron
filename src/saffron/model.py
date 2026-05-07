@@ -36,11 +36,11 @@ class CausalSelfAttention(nn.Module):
         assert n_embd == self.n_embd
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
 
-        k = k.view(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
-        q = q.view(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
-        v = v.view(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
+        k = k.reshape(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
+        q = q.reshape(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
+        v = v.reshape(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
         y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
-        y = y.transpose(1, 2).contiguous().view(B, T, n_embd)
+        y = y.transpose(1, 2).contiguous().reshape(B, T, n_embd)
 
         y = self.c_proj(y)
         return y
@@ -120,8 +120,8 @@ class Model(nn.Module):
         loss = None
         if target is not None:
             loss = F.cross_entropy(
-                logits.view(B * T, self.config.vocab_size),
-                target.view(B * T),
+                logits.reshape(B * T, self.config.vocab_size),
+                target.reshape(B * T),
             )
 
         return logits, loss

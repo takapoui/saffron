@@ -57,7 +57,7 @@ class DataLoader:
 
     def next_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
         buf = self.tokens[self.current_position : self.current_position + self.B * self.T + 1]
-        x, y = buf[:-1].view(self.B, self.T), buf[1:].view(self.B, self.T)
+        x, y = buf[:-1].reshape(self.B, self.T), buf[1:].reshape(self.B, self.T)
         self.current_position += self.B * self.T * self.world_size
 
         if self.current_position + self.B * self.T + 1 >= len(self.tokens):

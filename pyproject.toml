@@ -48,6 +48,9 @@ select = [
 # Ignore specific rules if needed
 ignore = ["N803", "N806", "N812"]
 
+[tool.ruff.lint.isort]
+known-third-party = ["torch", "wandb", "tiktoken", "datasets", "numpy", "transformers"]
+
 [tool.ruff.format]
 # Use double quotes for strings
 quote-style = "double"

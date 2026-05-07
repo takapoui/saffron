@@ -12,8 +12,8 @@ wandb
 
 # Development
 ipykernel
-ruff>=0.8.4
-pyright>=1.1.390
+ruff==0.15.12
+pyright==1.1.409
 pre-commit
 
 # Testing
