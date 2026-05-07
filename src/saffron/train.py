@@ -73,9 +73,13 @@ class Trainer:
             self.train_loader.reset()
             self.train_loader.advance(checkpoint["step"] * train_config.total_batch_size)
 
+        self.tokens_seen = self.step * train_config.total_batch_size
+
         self.use_wandb = self.master_process and train_config.wandb_project is not None
         if self.use_wandb:
             wandb.init(project=train_config.wandb_project, config=dataclasses.asdict(train_config))
+            wandb.define_metric("tokens_seen")
+            wandb.define_metric("*", step_metric="tokens_seen")
 
     def train(self) -> None:
         self.model.train()
@@ -134,8 +138,14 @@ class Trainer:
             elif self.run_config.device_type == "mps":
                 torch.mps.synchronize()
             t1 = time.time()
+            self.tokens_seen += self.train_config.total_batch_size
             tok_per_sec = self.train_config.total_batch_size / (t1 - t0)
-            mfu = 6 * self._num_model_parameters * tok_per_sec / self._device_peak_flops
+            mfu = (
+                6
+                * self._num_model_parameters
+                * tok_per_sec
+                / (self._device_peak_flops * self.run_config.ddp_world_size)
+            )
             metrics = {
                 "sec": t1 - t0,
                 "norm": norm.item(),
@@ -143,6 +153,7 @@ class Trainer:
                 "loss": loss_accum,
                 "tok_per_sec": tok_per_sec,
                 "mfu": mfu,
+                "tokens_seen": self.tokens_seen,
             }
             if step % self.train_config.log_every == 0:
                 self._log(step, metrics)
@@ -217,4 +228,4 @@ class Trainer:
             logger.info(" | ".join(info))
 
         if self.use_wandb:
-            wandb.log(metrics, step=step)
+            wandb.log({"tokens_seen": self.tokens_seen, **metrics}, step=step)
