@@ -4,57 +4,19 @@ import contextlib
 import dataclasses
 import logging
 import time
-from dataclasses import dataclass
-from pathlib import Path
 
 import tiktoken
 import torch
 import wandb
 from torch.nn.parallel import DistributedDataParallel
 
+from .config import RunConfig, TrainConfig
 from .dataloader import DataLoader
 from .hellaswag import evaluate_hellaswag
 from .model import Model
 from .optim import get_lr_cosine
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class TrainConfig:
-    # optimization
-    max_steps: int
-    warmup_steps: int
-    max_lr: float
-    weight_decay: float
-    grad_clip: float
-
-    # data
-    total_batch_size: int  # 524288 if cuda else 16384
-
-    # eval
-    eval_loss_every: int
-    eval_loss_steps: int  # how many val batches to average over
-    eval_task_every: int
-
-    # checkpointing
-    checkpoint_dir: Path
-    checkpoint_every: int
-    resume_from: Path | None
-
-    # logging
-    log_every: int
-    wandb_project: str | None
-
-
-@dataclass
-class RunConfig:
-    device: str
-    device_type: str
-    use_ddp: bool
-    ddp_rank: int
-    ddp_local_rank: int
-    ddp_world_size: int
 
 
 class Trainer:
@@ -81,6 +43,7 @@ class Trainer:
         self.val_loader = val_loader
         self.train_config = train_config
         self.run_config = run_config
+        self.enc = tiktoken.get_encoding(train_config.tokenizer)
 
         # master process
         self.master_process = run_config.ddp_rank == 0
@@ -201,18 +164,23 @@ class Trainer:
 
     def _eval_tasks(self, step: int) -> dict[str, float]:
         if self.master_process:
-            hellaswag_accuracy = evaluate_hellaswag(
-                self.raw_model, self.run_config.device, self.run_config.device_type
-            )
+            metrics: dict[str, float] = {}
+
+            if self.train_config.eval_hellaswag:
+                metrics["hellaswag"] = evaluate_hellaswag(
+                    self.raw_model,
+                    self.run_config.device,
+                    self.run_config.device_type,
+                    enc=self.enc,
+                )
 
             # Sample completion
             prompt = "Today is a nice day, because"
-            enc = tiktoken.get_encoding("gpt2")  # TODO no hardcode
-            idx = torch.tensor(enc.encode_ordinary(prompt), dtype=torch.long)
+            idx = torch.tensor(self.enc.encode_ordinary(prompt), dtype=torch.long)
             idx = idx.unsqueeze(0).repeat(5, 1)
             idx = idx.to(self.run_config.device)
             tokens = self.raw_model.generate(idx=idx, max_new_tokens=50)
-            completions = [enc.decode(tokens[i, :].tolist()) for i in range(tokens.shape[0])]  # type: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+            completions = [self.enc.decode(tokens[i, :].tolist()) for i in range(tokens.shape[0])]  # type: ignore[reportUnknownMemberType, reportUnknownArgumentType]
             for sample in completions:
                 logger.info(f"Step {step} sample: {sample}")
             if self.use_wandb:
@@ -221,7 +189,7 @@ class Trainer:
                     table.add_data(step, sample)  # type: ignore[reportUnknownMemberType]
                 wandb.log({"sample": table}, step=step)
 
-            return {"hellaswag": hellaswag_accuracy}
+            return metrics
         return {}
 
     def _save_checkpoint(self, step: int) -> None:

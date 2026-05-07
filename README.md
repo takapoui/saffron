@@ -13,10 +13,7 @@ make kernel       # registers the Jupyter kernel
 ## Data Preparation
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/prep_data.py \
-    --dataset HuggingFaceFW/fineweb-edu \
-    --name sample-10BT \
-    --shard_size 100000000
+PYTHONPATH=src .venv/bin/python scripts/prep_data.py --config configs/gpt2_small.json
 ```
 
 ## Training

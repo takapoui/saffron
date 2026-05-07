@@ -45,10 +45,8 @@ def tokenize_example(
 
 @torch.no_grad()
 def evaluate_hellaswag(
-    model: Model, device: str, device_type: str, enc: tiktoken.Encoding | None = None
+    model: Model, device: str, device_type: str, enc: tiktoken.Encoding
 ) -> float:
-    if enc is None:
-        enc = tiktoken.get_encoding("gpt2")
     hellaswag = _get_hellaswag_dataset()
 
     model.eval()

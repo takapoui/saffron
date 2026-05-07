@@ -13,9 +13,11 @@
         "weight_decay": 0.1,
         "grad_clip": 1.0,
         "total_batch_size": 8192,
+        "tokenizer": "gpt2",
         "eval_loss_every": 50,
         "eval_loss_steps": 20,
         "eval_task_every": 500,
+        "eval_hellaswag": false,
         "checkpoint_every": 500,
         "checkpoint_dir": "checkpoints/gpt2_small_mps",
         "resume_from": null,
@@ -24,6 +26,12 @@
     },
     "data": {
         "data_root": "data/stas_openwebtext-10k",
+        "dataset": "stas/openwebtext-10k",
+        "name": "",
+        "shard_size": 100000,
+        "tokenizer": "gpt2",
+        "dataset_split": "train",
+        "num_validation_shards": 1,
         "batch_size": 4,
         "seq_len": 1024
     }

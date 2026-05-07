@@ -1,20 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
-
-@dataclass
-class ModelConfig:
-    vocab_size: int
-    n_embd: int
-    block_size: int
-    n_layer: int
-    n_head: int
+from .config import ModelConfig
 
 
 class ScaledLinear(nn.Linear):

@@ -2,17 +2,16 @@ import argparse
 import json
 import logging
 import os
-from pathlib import Path
-from typing import Any
 
 import torch
 from torch.distributed import init_process_group
 
+from saffron.config import DataConfig, ModelConfig, RunConfig, TrainConfig
 from saffron.dataloader import DataLoader
 from saffron.helpers import get_default_device
-from saffron.model import Model, ModelConfig
+from saffron.model import Model
 from saffron.optim import configure_adamw
-from saffron.train import RunConfig, TrainConfig, Trainer
+from saffron.train import Trainer
 
 
 def make_run_config() -> RunConfig:
@@ -46,24 +45,18 @@ def make_run_config() -> RunConfig:
 def main(
     model_config: ModelConfig,
     train_config: TrainConfig,
-    data_config: dict[str, Any],
+    data_config: DataConfig,
 ) -> None:
     model = Model(model_config)
     run_config = make_run_config()
     train_loader = DataLoader(
-        B=data_config["batch_size"],
-        T=data_config["seq_len"],
-        data_root=Path(data_config["data_root"]),
-        rank=run_config.ddp_rank,
-        world_size=run_config.ddp_world_size,
+        data_config=data_config,
+        run_config=run_config,
         split="train",
     )
     val_loader = DataLoader(
-        B=data_config["batch_size"],
-        T=data_config["seq_len"],
-        data_root=Path(data_config["data_root"]),
-        rank=run_config.ddp_rank,
-        world_size=run_config.ddp_world_size,
+        data_config=data_config,
+        run_config=run_config,
         split="val",
     )
     optimizer = configure_adamw(
@@ -93,9 +86,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     with open(args.config) as f:
         config = json.load(f)
-    model_config = ModelConfig(**config["model"])
-    config["train"]["checkpoint_dir"] = Path(config["train"]["checkpoint_dir"])
-    if config["train"]["resume_from"] is not None:
-        config["train"]["resume_from"] = Path(config["train"]["resume_from"])
-    train_config = TrainConfig(**config["train"])
-    main(model_config=model_config, train_config=train_config, data_config=config["data"])
+
+    model_config = ModelConfig.from_dict(config["model"])
+    train_config = TrainConfig.from_dict(config["train"])
+    data_config = DataConfig.from_dict(config["data"])
+
+    main(model_config=model_config, train_config=train_config, data_config=data_config)

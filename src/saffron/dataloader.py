@@ -3,7 +3,6 @@ import multiprocessing as mp
 import os
 from collections.abc import Iterable
 from functools import partial
-from pathlib import Path
 from typing import cast
 
 import numpy as np
@@ -11,30 +10,33 @@ import tiktoken
 import torch
 from datasets import load_dataset  # type: ignore[reportUnknownVariableType]
 
+from .config import DataConfig, PrepConfig, RunConfig
+
 logger = logging.getLogger(__name__)
 
 
 class DataLoader:
     def __init__(
         self,
-        B: int,
-        T: int,
-        data_root: Path,
-        rank: int = 0,
-        world_size: int = 1,
-        split: str = "train",  # TODO enum
+        data_config: DataConfig,
+        run_config: RunConfig,
+        split: str,
     ) -> None:
         # We assume data_root has files called train_xxx.npy and val_yyy.py
         # The files are already tokenized
-        self.B = B
-        self.T = T
-        self.rank = rank
-        self.world_size = world_size
+        self.B = data_config.batch_size
+        self.T = data_config.seq_len
+        self.rank = run_config.ddp_rank
+        self.world_size = run_config.ddp_world_size
 
-        self.shards = sorted([str(p) for p in data_root.iterdir() if p.name.startswith(split)])
-        assert len(self.shards) > 0, f"No shards found in {data_root} for split {split}"
-        if rank == 0:
-            logger.info(f"Found {len(self.shards)} shards for split {split} in {data_root}")
+        self.shards = sorted(
+            [str(p) for p in data_config.data_root.iterdir() if p.name.startswith(split)]
+        )
+        assert len(self.shards) > 0, f"No shards found in {data_config.data_root} for split {split}"
+        if self.rank == 0:
+            logger.info(
+                f"Found {len(self.shards)} shards for split {split} in {data_config.data_root}"
+            )
 
         self.reset()
 
@@ -86,39 +88,36 @@ def _tokenize(doc: dict[str, str], enc: tiktoken.Encoding) -> np.ndarray:
     return tokens.astype(np.uint16)
 
 
-def load_and_tokenize_dataset(
-    dataset: str,
-    name: str,
-    shard_size: int,
-    dest_dir: Path,
-    enc: tiktoken.Encoding,
-    dataset_split: str = "train",
-    num_validation_shards: int = 1,
-) -> None:
+def load_and_tokenize_dataset(prep_config: PrepConfig) -> None:
+    enc = tiktoken.get_encoding(prep_config.tokenizer)
     fw = cast(
-        Iterable[dict[str, str]], load_dataset(dataset, name if name else None, split=dataset_split)
+        Iterable[dict[str, str]],
+        load_dataset(
+            prep_config.dataset,
+            prep_config.name if prep_config.name else None,
+            split=prep_config.dataset_split,
+        ),
     )
-
-    os.makedirs(dest_dir, exist_ok=True)
+    os.makedirs(prep_config.data_root, exist_ok=True)
 
     def _write_to_file(arr: np.ndarray, shard_index: int) -> None:
         # Use first documents as validation
-        sp = "val" if shard_index < num_validation_shards else "train"
-        filename = os.path.join(dest_dir, f"{sp}_{shard_index:06d}")
+        sp = "val" if shard_index < prep_config.num_validation_shards else "train"
+        filename = os.path.join(prep_config.data_root, f"{sp}_{shard_index:06d}")
         np.save(filename, arr)
 
     nprocs = max(1, (os.cpu_count() or 2) // 2)
     with mp.Pool(nprocs) as pool:
         shard_index = 0
-        all_tokens_np = np.empty((shard_size,), dtype=np.uint16)
+        all_tokens_np = np.empty((prep_config.shard_size,), dtype=np.uint16)
         token_count = 0
 
         for tokens in pool.imap(partial(_tokenize, enc=enc), fw, chunksize=16):
-            if token_count + len(tokens) < shard_size:
+            if token_count + len(tokens) < prep_config.shard_size:
                 all_tokens_np[token_count : token_count + len(tokens)] = tokens
                 token_count += len(tokens)
             else:
-                remainder = shard_size - token_count
+                remainder = prep_config.shard_size - token_count
                 all_tokens_np[token_count:] = tokens[:remainder]
                 _write_to_file(all_tokens_np, shard_index)
 
