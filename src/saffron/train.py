@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import tiktoken
 import torch
 import wandb
 from torch.nn.parallel import DistributedDataParallel
@@ -118,7 +119,7 @@ class Trainer:
                 self._log(step, metrics)
 
             if step % self.train_config.eval_task_every == 0:
-                metrics = self._eval_tasks()
+                metrics = self._eval_tasks(step=step)
                 if metrics:
                     self._log(step, metrics)
 
@@ -172,7 +173,7 @@ class Trainer:
                 "norm": norm.item(),
                 "lr": lr,
                 "loss": loss_accum,
-                "tok/sec": self.train_config.total_batch_size / (t1 - t0),
+                "tok_per_sec": self.train_config.total_batch_size / (t1 - t0),
             }
             if step % self.train_config.log_every == 0:
                 self._log(step, metrics)
@@ -198,11 +199,28 @@ class Trainer:
         self.model.train()
         return val_loss_accum
 
-    def _eval_tasks(self) -> dict[str, float]:
+    def _eval_tasks(self, step: int) -> dict[str, float]:
         if self.master_process:
             hellaswag_accuracy = evaluate_hellaswag(
                 self.raw_model, self.run_config.device, self.run_config.device_type
             )
+
+            # Sample completion
+            prompt = "Today is a nice day, because"
+            enc = tiktoken.get_encoding("gpt2")  # TODO no hardcode
+            idx = torch.tensor(enc.encode_ordinary(prompt), dtype=torch.long)
+            idx = idx.unsqueeze(0).repeat(5, 1)
+            idx = idx.to(self.run_config.device)
+            tokens = self.raw_model.generate(idx=idx, max_new_tokens=50)
+            completions = [enc.decode(tokens[i, :].tolist()) for i in range(tokens.shape[0])]  # type: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+            for sample in completions:
+                logger.info(f"Step {step} sample: {sample}")
+            if self.use_wandb:
+                table = wandb.Table(columns=["step", "completion"])
+                for sample in completions:
+                    table.add_data(step, sample)  # type: ignore[reportUnknownMemberType]
+                wandb.log({"sample": table}, step=step)
+
             return {"hellaswag": hellaswag_accuracy}
         return {}
 
