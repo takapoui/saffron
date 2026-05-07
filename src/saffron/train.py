@@ -13,6 +13,7 @@ from torch.nn.parallel import DistributedDataParallel
 from .config import RunConfig, TrainConfig
 from .dataloader import DataLoader
 from .hellaswag import evaluate_hellaswag
+from .helpers import get_peak_flops
 from .model import Model
 from .optim import get_lr_cosine
 
@@ -44,6 +45,8 @@ class Trainer:
         self.train_config = train_config
         self.run_config = run_config
         self.enc = tiktoken.get_encoding(train_config.tokenizer)
+        self._num_model_parameters = sum(p.numel() for p in model.parameters())
+        self._device_peak_flops = get_peak_flops(run_config.device_type)
 
         # master process
         self.master_process = run_config.ddp_rank == 0
@@ -131,12 +134,15 @@ class Trainer:
             elif self.run_config.device_type == "mps":
                 torch.mps.synchronize()
             t1 = time.time()
+            tok_per_sec = self.train_config.total_batch_size / (t1 - t0)
+            mfu = 6 * self._num_model_parameters * tok_per_sec / self._device_peak_flops
             metrics = {
                 "sec": t1 - t0,
                 "norm": norm.item(),
                 "lr": lr,
                 "loss": loss_accum,
-                "tok_per_sec": self.train_config.total_batch_size / (t1 - t0),
+                "tok_per_sec": tok_per_sec,
+                "mfu": mfu,
             }
             if step % self.train_config.log_every == 0:
                 self._log(step, metrics)
