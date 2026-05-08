@@ -2,6 +2,9 @@ import argparse
 import json
 import logging
 import os
+from datetime import datetime
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 import torch
 from torch.distributed import init_process_group
@@ -80,7 +83,17 @@ def main(
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    log_fmt = "%(asctime)s %(levelname)s %(message)s"
+    Path("logs").mkdir(exist_ok=True)
+    log_file = f"logs/train_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format=log_fmt,
+        handlers=[
+            logging.StreamHandler(),
+            RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=5),
+        ],
+    )
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     args = parser.parse_args()
