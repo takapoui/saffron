@@ -1,0 +1,7 @@
+# Same as requirements.txt but excludes torch — use on Lambda Labs with system-site-packages
+# so that cuDNN resolves correctly via Lambda Stack
+datasets
+numpy
+tiktoken
+transformers
+wandb

@@ -1,4 +1,4 @@
-.PHONY: help setup-linux venv install activate-venv kernel lint lint-fix test clean
+.PHONY: help setup-linux venv install install-local install-cluster activate-venv kernel lint lint-fix test clean
 
 VENV := .venv
 PYTHON_VERSION := $(shell grep 'requires-python' pyproject.toml | sed 's/[^0-9]*\([0-9][0-9]*\.[0-9][0-9]*\).*/\1/')
@@ -8,12 +8,12 @@ RUFF := $(PYTHON) -m ruff
 PYRIGHT := $(PYTHON) -m pyright
 PYTEST := $(PYTHON) -m pytest
 NODE_PATH_PREFIX := /opt/homebrew/bin:$(PATH)
-SYSTEM_SITE_PACKAGES ?= 0
 help:
 	@echo "Available targets:"
 	@echo "  make setup-linux          - Install system dependencies on Ubuntu/Debian (e.g. LambdaLabs)"
 	@echo "  make venv                 - Create the local .venv if it does not exist"
-	@echo "  make install              - Install requirements (SYSTEM_SITE_PACKAGES=1 to reuse system torch)"
+	@echo "  make install-local        - Install all dependencies for local development"
+	@echo "  make install-cluster      - Install cluster dependencies using system torch (Lambda Labs)"
 	@echo "  make activate-venv        - Print the command to activate .venv"
 	@echo "  make kernel               - Register/update the Jupyter kernel from .venv"
 	@echo "  make lint                 - Run code linters and formatters from .venv"
@@ -28,19 +28,23 @@ setup-linux:
 	git config --global core.editor vim
 
 $(PYTHON):
-ifeq ($(SYSTEM_SITE_PACKAGES), 1)
-	python$(PYTHON_VERSION) -m venv --system-site-packages $(VENV)
-else
 	python$(PYTHON_VERSION) -m venv $(VENV)
-endif
+	$(VENV)/bin/pip install uv
+
+$(PYTHON)-system:
+	python$(PYTHON_VERSION) -m venv --system-site-packages $(VENV)
 	$(VENV)/bin/pip install uv
 
 venv: $(PYTHON)
 
-install: $(PYTHON)
+install-local: $(PYTHON)
 	$(UV) pip install -r requirements.txt
 	$(UV) pip install -e .
 	$(PYTHON) -m pre_commit install
+
+install-cluster: $(PYTHON)-system
+	$(UV) pip install -r requirements-cluster.txt
+	$(UV) pip install -e .
 
 activate-venv: venv
 	@echo "Run this in your shell:"
