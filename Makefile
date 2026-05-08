@@ -2,6 +2,7 @@
 
 VENV := .venv
 PYTHON_VERSION := $(shell grep 'requires-python' pyproject.toml | sed 's/[^0-9]*\([0-9][0-9]*\.[0-9][0-9]*\).*/\1/')
+SYSTEM_PYTHON_VERSION := $(shell python3 --version 2>&1 | sed 's/Python \([0-9]*\.[0-9]*\).*/\1/')
 PYTHON := $(VENV)/bin/python
 UV := $(VENV)/bin/uv
 RUFF := $(PYTHON) -m ruff
@@ -32,7 +33,7 @@ $(PYTHON):
 	$(VENV)/bin/pip install uv
 
 $(PYTHON)-system:
-	python$(PYTHON_VERSION) -m venv --system-site-packages $(VENV)
+	python$(SYSTEM_PYTHON_VERSION) -m venv --system-site-packages $(VENV)
 	$(VENV)/bin/pip install uv
 
 venv: $(PYTHON)
@@ -50,7 +51,7 @@ activate-venv: venv
 	@echo "Run this in your shell:"
 	@echo "source $(VENV)/bin/activate"
 
-kernel: install
+kernel: install-local
 	$(PYTHON) -m ipykernel install --sys-prefix --name saffron-venv --display-name "Python (.venv)"
 
 lint:
