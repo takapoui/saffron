@@ -4,16 +4,16 @@ LLM experiments in Python.
 
 ## Setup
 
+**Local:**
 ```bash
-make setup-linux  # Ubuntu/Debian (e.g. LambdaLabs) — installs Python and system deps
-make install      # creates .venv and installs all dependencies
-make kernel       # registers the Jupyter kernel (local only)
+make install-local  # creates .venv and installs all dependencies
+make kernel         # registers the Jupyter kernel
 ```
 
-On a GPU cluster (e.g. LambdaLabs), reuse the system-installed torch to skip the heavy download:
-
+**Cluster (e.g. LambdaLabs):**
 ```bash
-SYSTEM_SITE_PACKAGES=1 make install
+make setup-linux      # installs Python and system deps
+make install-cluster  # uses system torch (Lambda Stack) + installs remaining deps via uv
 ```
 
 ## Data Preparation
