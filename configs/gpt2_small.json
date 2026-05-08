@@ -16,9 +16,9 @@
         "tokenizer": "gpt2",
         "eval_loss_every": 250,
         "eval_loss_steps": 20,
-        "eval_task_every": 1000,
-        "eval_hellaswag": true,
-        "checkpoint_every": 5000,
+        "eval_generate_every": 100,
+        "eval_hellaswag_every": 1000,
+        "checkpoint_every": 1000,
         "checkpoint_dir": "checkpoints/gpt2_small",
         "resume_from": null,
         "log_every": 10,
@@ -32,7 +32,7 @@
         "tokenizer": "gpt2",
         "dataset_split": "train",
         "num_validation_shards": 1,
-        "batch_size": 16,
+        "batch_size": 64,
         "seq_len": 1024
     }
 }

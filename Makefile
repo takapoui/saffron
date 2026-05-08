@@ -23,7 +23,7 @@ help:
 setup-linux:
 	sudo add-apt-repository ppa:deadsnakes/ppa -y
 	sudo apt update
-	sudo apt install -y python$(PYTHON_VERSION) python$(PYTHON_VERSION)-venv
+	sudo apt install -y python$(PYTHON_VERSION) python$(PYTHON_VERSION)-venv python$(PYTHON_VERSION)-dev
 	git config --global core.editor vim
 
 $(PYTHON):

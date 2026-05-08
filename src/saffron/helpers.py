@@ -1,6 +1,5 @@
 import logging
 
-import numpy as np
 import torch
 
 
@@ -14,18 +13,28 @@ def get_default_device() -> str:
     return device
 
 
+# Borrowed from nanochat, focused on lambdalabs gpus
+_PEAK_FLOPS_TABLE: tuple[tuple[list[str], float], ...] = (
+    # NVIDIA Hopper — GH200 reports as H100 SXM5
+    (["h100", "pcie"], 756e12),
+    (["h100"], 989e12),  # SXM5
+    # NVIDIA Ampere data center
+    (["a100", "pcie"], 77.97e12),  # A100 PCIe 40GB
+    (["a100"], 312e12),  # A100 SXM4 40GB / 80GB
+    (["a6000"], 38.7e12),  # RTX A6000 48GB (Ampere)
+    (["a10"], 31.2e12),  # A10 24GB PCIe
+    # NVIDIA Ada data center
+    (["6000"], 91.1e12),  # RTX 6000 Ada 24GB
+    # NVIDIA Volta — no native BF16, FP16 peak listed
+    (["v100"], 125e12),
+)
+
+
 def get_peak_flops(device_type: str) -> float:
     if device_type != "cuda":
-        # meaningless
-        return np.inf
+        return float("inf")
     device_name = torch.cuda.get_device_name(0).lower()
-    if "h100" in device_name:
-        return 989e12
-    elif "a100" in device_name:
-        return 312e12
-    elif "a10" in device_name:
-        return 31.2e12
-    elif "6000" in device_name:
-        return 91.1e12
-    else:
-        return np.inf
+    for keywords, flops in _PEAK_FLOPS_TABLE:
+        if all(kw in device_name for kw in keywords):
+            return flops
+    return float("inf")

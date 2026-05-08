@@ -40,8 +40,8 @@ class TrainConfig:
     # eval
     eval_loss_every: int
     eval_loss_steps: int  # how many val batches to average over
-    eval_task_every: int
-    eval_hellaswag: bool
+    eval_generate_every: int
+    eval_hellaswag_every: int
 
     # checkpointing
     checkpoint_dir: Path
@@ -64,8 +64,8 @@ class TrainConfig:
             tokenizer=d["tokenizer"],
             eval_loss_every=d["eval_loss_every"],
             eval_loss_steps=d["eval_loss_steps"],
-            eval_task_every=d["eval_task_every"],
-            eval_hellaswag=d["eval_hellaswag"],
+            eval_generate_every=d["eval_generate_every"],
+            eval_hellaswag_every=d["eval_hellaswag_every"],
             checkpoint_dir=Path(d["checkpoint_dir"]),
             checkpoint_every=d["checkpoint_every"],
             resume_from=Path(d["resume_from"]) if d["resume_from"] is not None else None,

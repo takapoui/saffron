@@ -4,6 +4,7 @@ import contextlib
 import dataclasses
 import logging
 import time
+from typing import cast
 
 import tiktoken
 import torch
@@ -31,12 +32,12 @@ class Trainer:
         run_config: RunConfig,
     ) -> None:
         if run_config.use_ddp:
-            self.raw_model = model.to(run_config.device)
+            self.raw_model = cast(Model, torch.compile(model.to(run_config.device)))  # pyright: ignore[reportUnknownMemberType]
             self.model = DistributedDataParallel(
                 self.raw_model, device_ids=[run_config.ddp_local_rank]
             )
         else:
-            self.raw_model = model.to(run_config.device)
+            self.raw_model = cast(Model, torch.compile(model.to(run_config.device)))  # pyright: ignore[reportUnknownMemberType]
             self.model = self.raw_model
 
         self.optimizer = optimizer
@@ -88,8 +89,11 @@ class Trainer:
                 metrics = {"eval_loss": self._eval_loss()}
                 self._log(step, metrics)
 
-            if step % self.train_config.eval_task_every == 0:
-                metrics = self._eval_tasks(step=step)
+            if step % self.train_config.eval_generate_every == 0:
+                self._eval_generate_task(step=step)
+
+            if step % self.train_config.eval_hellaswag_every == 0:
+                metrics = self._eval_hellaswag_task(step=step)
                 if metrics:
                     self._log(step, metrics)
 
@@ -179,19 +183,8 @@ class Trainer:
         self.model.train()
         return val_loss_accum
 
-    def _eval_tasks(self, step: int) -> dict[str, float]:
+    def _eval_generate_task(self, step: int) -> None:
         if self.master_process:
-            metrics: dict[str, float] = {}
-
-            if self.train_config.eval_hellaswag:
-                metrics["hellaswag"] = evaluate_hellaswag(
-                    self.raw_model,
-                    self.run_config.device,
-                    self.run_config.device_type,
-                    enc=self.enc,
-                )
-
-            # Sample completion
             prompt = "Today is a nice day, because"
             idx = torch.tensor(self.enc.encode_ordinary(prompt), dtype=torch.long)
             idx = idx.unsqueeze(0).repeat(5, 1)
@@ -205,6 +198,17 @@ class Trainer:
                 for sample in completions:
                     table.add_data(step, sample)  # type: ignore[reportUnknownMemberType]
                 wandb.log({"sample": table}, step=step)
+
+    def _eval_hellaswag_task(self, step: int) -> dict[str, float]:
+        if self.master_process:
+            metrics = {
+                "hellaswag": evaluate_hellaswag(
+                    self.raw_model,
+                    self.run_config.device,
+                    self.run_config.device_type,
+                    enc=self.enc,
+                )
+            }
 
             return metrics
         return {}
