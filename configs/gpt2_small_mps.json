@@ -25,10 +25,10 @@
         "wandb_project": "saffron"
     },
     "data": {
-        "data_root": "data/stas_openwebtext-10k",
-        "dataset": "stas/openwebtext-10k",
+        "data_root": "data/roneneldan_TinyStories",
+        "dataset": "roneneldan/TinyStories",
         "name": "",
-        "shard_size": 100000,
+        "shard_size": 1000000,
         "tokenizer": "gpt2",
         "dataset_split": "train",
         "num_validation_shards": 1,

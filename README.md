@@ -29,7 +29,7 @@ PYTHONPATH=src .venv/bin/python scripts/prep_data.py --config configs/gpt2_small
 PYTHONPATH=src .venv/bin/python scripts/run_train.py --config configs/gpt2_small.json
 
 # multi GPU (e.g. 8 GPUs)
-PYTHONPATH=src torchrun --nproc_per_node=8 scripts/run_train.py --config configs/gpt2_small.json
+PYTHONPATH=src .venv/bin/torchrun --nproc_per_node=8 scripts/run_train.py --config configs/gpt2_small.json
 ```
 
 ## Development
