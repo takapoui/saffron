@@ -7,7 +7,13 @@ LLM experiments in Python.
 ```bash
 make setup-linux  # Ubuntu/Debian (e.g. LambdaLabs) — installs Python and system deps
 make install      # creates .venv and installs all dependencies
-make kernel       # registers the Jupyter kernel
+make kernel       # registers the Jupyter kernel (local only)
+```
+
+On a GPU cluster (e.g. LambdaLabs), reuse the system-installed torch to skip the heavy download:
+
+```bash
+SYSTEM_SITE_PACKAGES=1 make install
 ```
 
 ## Data Preparation
