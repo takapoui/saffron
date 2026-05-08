@@ -213,7 +213,7 @@ class Trainer:
             return metrics
         return {}
 
-    def _save_checkpoint(self, step: int) -> None:
+    def _save_checkpoint(self, step: int, keep_last: int = 3) -> None:
         self.train_config.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         path = self.train_config.checkpoint_dir / f"ckpt_{step:06d}.pt"
         obj = {
@@ -225,6 +225,11 @@ class Trainer:
         }
         torch.save(obj, path)
         logger.info(f"Saved checkpoint to {path}")
+
+        checkpoints = sorted(self.train_config.checkpoint_dir.glob("ckpt_*.pt"))
+        for old in checkpoints[:-keep_last]:
+            old.unlink()
+            logger.info(f"Deleted old checkpoint {old}")
 
     def _log(self, step: int, metrics: dict[str, float]) -> None:
         if self.master_process:
