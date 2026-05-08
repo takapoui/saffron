@@ -122,11 +122,14 @@ class Model(nn.Module):
         torch.save({"config": self.config, "model": self.state_dict()}, fn)
 
     @classmethod
-    def load_from_file(cls, fn: Path) -> Model:
-        checkpoint = torch.load(fn, weights_only=False)
-        model = cls(checkpoint["config"])
-        model.load_state_dict(checkpoint["model"])
-        return model
+    def load_from_file(cls, fn: Path, device: str = "cpu") -> Model:
+        checkpoint = torch.load(fn, weights_only=False, map_location=device)
+        model = cls(checkpoint["model_config"])
+        state_dict = checkpoint["model_dict"]
+        # torch.compile wraps keys with "_orig_mod." prefix — strip it
+        state_dict = {k.removeprefix("_orig_mod."): v for k, v in state_dict.items()}
+        model.load_state_dict(state_dict)
+        return model.to(device)
 
     @torch.no_grad()
     def generate(
