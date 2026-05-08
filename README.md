@@ -1,6 +1,16 @@
 # saffron
 
-LLM experiments in Python.
+A GPT-2 pretraining framework built from scratch in PyTorch — supporting DDP multi-GPU training, `torch.compile`, MFU tracking, and wandb logging.
+
+## Experiments & Results
+
+### Pretraining
+
+| Experiment | Model | Dataset | Hellaswag | Val Loss | MFU | Hardware |
+|---|---|---|---|---|---|---|
+| [001 — Baseline](experiments/001_gpt2_small_baseline.md) | GPT-2 small (124M) | fineweb-edu 10B | 30.4% | 3.07 | 33% | 8x A100 40GB |
+
+Full details and training curves in [`experiments/`](experiments/).
 
 ## Setup
 

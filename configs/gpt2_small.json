@@ -32,7 +32,7 @@
         "tokenizer": "gpt2",
         "dataset_split": "train",
         "num_validation_shards": 1,
-        "batch_size": 64,
+        "batch_size": 32,
         "seq_len": 1024
     }
 }
