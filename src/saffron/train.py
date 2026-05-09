@@ -15,7 +15,7 @@ from .config import RunConfig, TrainConfig
 from .dataloader import DataLoader
 from .hellaswag import evaluate_hellaswag
 from .helpers import get_peak_flops
-from .model import Model
+from .models import BaseModel
 from .optim import get_lr_cosine
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class Trainer:
     def __init__(
         self,
-        model: Model,
+        model: BaseModel,
         optimizer: torch.optim.AdamW,
         train_loader: DataLoader,
         val_loader: DataLoader,
@@ -32,12 +32,12 @@ class Trainer:
         run_config: RunConfig,
     ) -> None:
         if run_config.use_ddp:
-            self.raw_model = cast(Model, torch.compile(model.to(run_config.device)))  # pyright: ignore[reportUnknownMemberType]
+            self.raw_model = cast(BaseModel, torch.compile(model.to(run_config.device)))  # pyright: ignore[reportUnknownMemberType]
             self.model = DistributedDataParallel(
                 self.raw_model, device_ids=[run_config.ddp_local_rank]
             )
         else:
-            self.raw_model = cast(Model, torch.compile(model.to(run_config.device)))  # pyright: ignore[reportUnknownMemberType]
+            self.raw_model = cast(BaseModel, torch.compile(model.to(run_config.device)))  # pyright: ignore[reportUnknownMemberType]
             self.model = self.raw_model
 
         self.optimizer = optimizer

@@ -9,12 +9,16 @@ from pathlib import Path
 import torch
 from torch.distributed import init_process_group
 
-from saffron.config import DataConfig, ModelConfig, RunConfig, TrainConfig
+from saffron.config import DataConfig, RunConfig, TrainConfig
 from saffron.dataloader import DataLoader
 from saffron.helpers import get_default_device
-from saffron.model import Model
+from saffron.models import GPT2, BaseConfig, BaseModel
 from saffron.optim import configure_adamw
 from saffron.train import Trainer
+
+MODEL_REGISTRY: dict[str, type[BaseModel]] = {
+    "gpt2": GPT2,
+}
 
 
 def make_run_config() -> RunConfig:
@@ -46,11 +50,12 @@ def make_run_config() -> RunConfig:
 
 
 def main(
-    model_config: ModelConfig,
+    model_config: BaseConfig,
     train_config: TrainConfig,
     data_config: DataConfig,
+    model_cls: type[BaseModel],
 ) -> None:
-    model = Model(model_config)
+    model = model_cls(model_config)
     run_config = make_run_config()
     train_loader = DataLoader(
         data_config=data_config,
@@ -100,8 +105,15 @@ if __name__ == "__main__":
     with open(args.config) as f:
         config = json.load(f)
 
-    model_config = ModelConfig.from_dict(config["model"])
+    model_type = config["model"]["model_type"]
+    model_cls = MODEL_REGISTRY[model_type]
+    model_config = model_cls.config_class.from_dict(config["model"])
     train_config = TrainConfig.from_dict(config["train"])
     data_config = DataConfig.from_dict(config["data"])
 
-    main(model_config=model_config, train_config=train_config, data_config=data_config)
+    main(
+        model_config=model_config,
+        train_config=train_config,
+        data_config=data_config,
+        model_cls=model_cls,
+    )
