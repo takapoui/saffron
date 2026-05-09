@@ -6,25 +6,6 @@ from typing import Any
 
 
 @dataclass
-class ModelConfig:
-    vocab_size: int
-    n_embd: int
-    block_size: int
-    n_layer: int
-    n_head: int
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> ModelConfig:
-        return cls(
-            vocab_size=d["vocab_size"],
-            n_embd=d["n_embd"],
-            block_size=d["block_size"],
-            n_layer=d["n_layer"],
-            n_head=d["n_head"],
-        )
-
-
-@dataclass
 class TrainConfig:
     # optimization
     max_steps: int

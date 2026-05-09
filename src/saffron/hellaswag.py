@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 from datasets import Dataset, load_dataset  # type: ignore[reportUnknownVariableType]
 
-from .model import Model
+from .models import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ def tokenize_example(
 
 @torch.no_grad()
 def evaluate_hellaswag(
-    model: Model, device: str, device_type: str, enc: tiktoken.Encoding
+    model: BaseModel, device: str, device_type: str, enc: tiktoken.Encoding
 ) -> float:
     hellaswag = _get_hellaswag_dataset()
 

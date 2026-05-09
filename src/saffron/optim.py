@@ -3,14 +3,13 @@ import logging
 import math
 
 import torch
-
-from .model import Model
+from torch import nn
 
 logger = logging.getLogger(__name__)
 
 
 def configure_adamw(
-    model: Model,
+    model: nn.Module,
     weight_decay: float,
     learning_rate: float,
     device_type: str,
