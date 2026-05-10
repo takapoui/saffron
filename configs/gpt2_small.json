@@ -14,7 +14,6 @@
         "weight_decay": 0.1,
         "grad_clip": 1.0,
         "total_batch_size": 524288,
-        "tokenizer": "gpt2",
         "eval_loss_every": 250,
         "eval_loss_steps": 20,
         "eval_generate_every": 100,
@@ -26,14 +25,14 @@
         "wandb_project": "saffron"
     },
     "data": {
-        "data_root": "data/HuggingFaceFW_fineweb-edu",
+        "data_root": "data/gpt2/HuggingFaceFW_fineweb-edu",
         "dataset": "HuggingFaceFW/fineweb-edu",
         "name": "sample-10BT",
         "shard_size": 100000000,
-        "tokenizer": "gpt2",
         "dataset_split": "train",
         "num_validation_shards": 1,
         "batch_size": 32,
-        "seq_len": 1024
+        "seq_len": 1024,
+        "tokenizer": "gpt2"
     }
 }

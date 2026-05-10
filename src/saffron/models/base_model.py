@@ -2,18 +2,29 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Self
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Self
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
+from ..tokenizer import Tokenizer
 from .config import BaseConfig
 
 
 class BaseModel(nn.Module, ABC):
     config: BaseConfig
     config_class: type[BaseConfig]
+
+    def supports_compile(self, device_type: str) -> bool:
+        return True
+
+    @abstractmethod
+    def get_tokenizer(self) -> Tokenizer:
+        pass
 
     @abstractmethod
     def forward(
@@ -44,6 +55,12 @@ class BaseModel(nn.Module, ABC):
         temperature: float = 1,
         top_k: int = 50,
     ) -> torch.Tensor:
+        original_device = idx.device
+        # MPS has numerical issues with autoregressive generation — run on CPU
+        if original_device.type == "mps":
+            self.cpu()
+            idx = idx.cpu()
+
         self.eval()
         try:
             output = torch.cat(
@@ -65,4 +82,6 @@ class BaseModel(nn.Module, ABC):
                 output[:, col] = torch.gather(topk_indices, -1, ix).squeeze(-1)
         finally:
             self.train()
-        return output
+            if original_device.type == "mps":
+                self.to(original_device)
+        return output.to(original_device)

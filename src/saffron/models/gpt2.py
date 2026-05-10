@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from ..tokenizer import TiktokenTokenizer, Tokenizer
 from .base_model import BaseModel
 from .config import GPT2Config
 
@@ -72,6 +73,7 @@ class GPT2(BaseModel):
     def __init__(self, config: GPT2Config) -> None:
         super().__init__()
         self.config = config  # pyright: ignore[reportIncompatibleVariableOverride]
+        self._tokenizer = TiktokenTokenizer("gpt2")
 
         self.wte = nn.Embedding(config.vocab_size, config.n_embd)
         self.wpe = nn.Embedding(config.block_size, config.n_embd)
@@ -91,6 +93,9 @@ class GPT2(BaseModel):
             torch.nn.init.normal_(module.weight, mean=0, std=std)
         if isinstance(module, nn.Linear) and module.bias is not None:  # type: ignore[redundant-expr]
             torch.nn.init.zeros_(module.bias)
+
+    def get_tokenizer(self) -> Tokenizer:
+        return self._tokenizer
 
     def forward(
         self,
