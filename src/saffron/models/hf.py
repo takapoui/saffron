@@ -52,5 +52,9 @@ class HFModel(BaseModel):
         logits = self.hf_model(input_ids=idx).logits
         loss = None
         if target is not None:
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), target.view(-1))
+            loss = F.cross_entropy(
+                logits.view(-1, logits.size(-1)),
+                target.view(-1),
+                ignore_index=-1,
+            )
         return logits, loss

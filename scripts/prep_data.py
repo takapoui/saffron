@@ -2,8 +2,7 @@ import argparse
 import json
 import logging
 
-from saffron.config import PrepConfig
-from saffron.dataloader import load_and_tokenize_dataset
+from saffron.data import PrepConfig, load_and_tokenize_dataset
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

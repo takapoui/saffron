@@ -121,6 +121,7 @@ class GPT2(BaseModel):
             loss = F.cross_entropy(
                 logits.reshape(B * T, self.config.vocab_size),
                 target.reshape(B * T),
+                ignore_index=-1,
             )
 
         return logits, loss

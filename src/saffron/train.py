@@ -11,7 +11,7 @@ import wandb
 from torch.nn.parallel import DistributedDataParallel
 
 from .config import RunConfig, TrainConfig
-from .dataloader import DataLoader
+from .data import DataLoader
 from .hellaswag import evaluate_hellaswag
 from .helpers import get_peak_flops
 from .models import BaseModel

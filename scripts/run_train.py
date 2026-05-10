@@ -9,8 +9,8 @@ from pathlib import Path
 import torch
 from torch.distributed import init_process_group
 
-from saffron.config import DataConfig, RunConfig, TrainConfig
-from saffron.dataloader import DataLoader
+from saffron.config import RunConfig, TrainConfig
+from saffron.data import DataConfig, DataLoader
 from saffron.helpers import get_default_device
 from saffron.models import GPT2, BaseConfig, BaseModel, HFModel
 from saffron.optim import configure_adamw
