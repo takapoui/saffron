@@ -85,3 +85,17 @@ class HFTokenizer(Tokenizer):
     @property
     def vocab_size(self) -> int:
         return self._tok.vocab_size
+
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        tokenize: bool,
+        add_generation_prompt: bool,
+        return_dict: bool,
+    ) -> list[int]:
+        return self._tok.apply_chat_template(
+            messages,
+            tokenize=tokenize,
+            add_generation_prompt=add_generation_prompt,
+            return_dict=return_dict,
+        )

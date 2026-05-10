@@ -1,15 +1,12 @@
-import json
 import logging
 import multiprocessing as mp
 import os
-from collections.abc import Iterable
-from typing import cast
 
 import numpy as np
-from datasets import load_dataset  # type: ignore[reportUnknownVariableType]
 
 from ..tokenizer import Tokenizer
-from .config import PrepConfig
+from ._prep_utils import init_prep
+from .config import PretrainPrepConfig
 
 logger = logging.getLogger(__name__)
 
@@ -30,21 +27,8 @@ def _tokenize(doc: dict[str, str]) -> np.ndarray:
     return tokens.astype(dtype)
 
 
-def load_and_tokenize_dataset(prep_config: PrepConfig) -> None:
-    enc = Tokenizer.from_name(prep_config.tokenizer)
-    fw = cast(
-        Iterable[dict[str, str]],
-        load_dataset(
-            prep_config.dataset,
-            prep_config.name if prep_config.name else None,
-            split=prep_config.dataset_split,
-        ),
-    )
-    os.makedirs(prep_config.data_root, exist_ok=True)
-    dtype = "uint16" if enc.vocab_size <= 2**16 else "uint32"
-    meta_path = os.path.join(prep_config.data_root, "meta.json")
-    with open(meta_path, "w") as f:
-        json.dump({"tokenizer": prep_config.tokenizer}, f)
+def load_and_tokenize_dataset(prep_config: PretrainPrepConfig) -> None:
+    _, fw, dtype = init_prep(prep_config)
 
     def _write_to_file(arr: np.ndarray, shard_index: int) -> None:
         # Use first documents as validation

@@ -28,8 +28,15 @@ make install-cluster  # uses system torch (Lambda Stack) + installs remaining de
 
 ## Data Preparation
 
+**Pretraining:**
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/prep_data.py --config configs/gpt2_small.json
+PYTHONPATH=src .venv/bin/python scripts/prep_pretrain_data.py --config configs/gpt2_small.json
+```
+
+**SFT:**
+```bash
+PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/gsm8k_train.json
+PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/gsm8k_test.json
 ```
 
 ## Training

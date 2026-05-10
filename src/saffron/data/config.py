@@ -23,23 +23,50 @@ class DataConfig:
 
 
 @dataclass
-class PrepConfig:
+class BasePrepConfig:
     data_root: Path
     dataset: str
     name: str
-    shard_size: int
     tokenizer: str
     dataset_split: str
+
+    @classmethod
+    def _base_kwargs(cls, d: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "data_root": Path(d["data_root"]),
+            "dataset": d["dataset"],
+            "name": d["name"],
+            "tokenizer": d["tokenizer"],
+            "dataset_split": d["dataset_split"],
+        }
+
+
+@dataclass
+class PretrainPrepConfig(BasePrepConfig):
+    shard_size: int
+
     num_validation_shards: int
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> PrepConfig:
+    def from_dict(cls, d: dict[str, Any]) -> PretrainPrepConfig:
         return cls(
-            data_root=Path(d["data_root"]),
-            dataset=d["dataset"],
-            name=d["name"],
+            **cls._base_kwargs(d),
             shard_size=d["shard_size"],
-            tokenizer=d["tokenizer"],
-            dataset_split=d["dataset_split"],
             num_validation_shards=d["num_validation_shards"],
+        )
+
+
+@dataclass
+class SFTPrepConfig(BasePrepConfig):
+    examples_per_shard: int
+    max_length: int
+    system_prompt: str | None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> SFTPrepConfig:
+        return cls(
+            **cls._base_kwargs(d),
+            examples_per_shard=d["examples_per_shard"],
+            max_length=d["max_length"],
+            system_prompt=d.get("system_prompt"),
         )

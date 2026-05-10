@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 
-from saffron.data import PrepConfig, load_and_tokenize_dataset
+from saffron.data import SFTPrepConfig, prepare_sft_dataset
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -10,6 +10,6 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, required=True)
     args = parser.parse_args()
     with open(args.config) as f:
-        prep_config = PrepConfig.from_dict(json.load(f)["data"])
+        prep_config = SFTPrepConfig.from_dict(json.load(f)["prep"])
 
-    load_and_tokenize_dataset(prep_config)
+    prepare_sft_dataset(prep_config)
