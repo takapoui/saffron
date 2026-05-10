@@ -16,7 +16,6 @@ class TrainConfig:
 
     # data
     total_batch_size: int  # 524288 if cuda else 16384
-    tokenizer: str
 
     # eval
     eval_loss_every: int
@@ -42,7 +41,6 @@ class TrainConfig:
             weight_decay=d["weight_decay"],
             grad_clip=d["grad_clip"],
             total_batch_size=d["total_batch_size"],
-            tokenizer=d["tokenizer"],
             eval_loss_every=d["eval_loss_every"],
             eval_loss_steps=d["eval_loss_steps"],
             eval_generate_every=d["eval_generate_every"],
@@ -60,6 +58,7 @@ class DataConfig:
     data_root: Path
     batch_size: int
     seq_len: int
+    tokenizer: str
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> DataConfig:
@@ -67,6 +66,7 @@ class DataConfig:
             data_root=Path(d["data_root"]),
             batch_size=d["batch_size"],
             seq_len=d["seq_len"],
+            tokenizer=d["tokenizer"],
         )
 
 

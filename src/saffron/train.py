@@ -6,7 +6,6 @@ import logging
 import time
 from typing import cast
 
-import tiktoken
 import torch
 import wandb
 from torch.nn.parallel import DistributedDataParallel
@@ -31,13 +30,17 @@ class Trainer:
         train_config: TrainConfig,
         run_config: RunConfig,
     ) -> None:
+        tokenizer = model.get_tokenizer()
+        model = model.to(run_config.device)
+        if model.supports_compile(run_config.device_type):
+            model = cast(BaseModel, torch.compile(model))  # pyright: ignore[reportUnknownMemberType]
+        self.raw_model = model
+
         if run_config.use_ddp:
-            self.raw_model = cast(BaseModel, torch.compile(model.to(run_config.device)))  # pyright: ignore[reportUnknownMemberType]
             self.model = DistributedDataParallel(
                 self.raw_model, device_ids=[run_config.ddp_local_rank]
             )
         else:
-            self.raw_model = cast(BaseModel, torch.compile(model.to(run_config.device)))  # pyright: ignore[reportUnknownMemberType]
             self.model = self.raw_model
 
         self.optimizer = optimizer
@@ -45,7 +48,13 @@ class Trainer:
         self.val_loader = val_loader
         self.train_config = train_config
         self.run_config = run_config
-        self.enc = tiktoken.get_encoding(train_config.tokenizer)
+        self.tokenizer = tokenizer
+        if self.tokenizer.name != train_loader.tokenizer_name:
+            raise ValueError(
+                f"Model tokenizer '{self.tokenizer.name}' does not match "
+                f"data tokenizer '{train_loader.tokenizer_name}'. "
+                "Re-run data prep with the correct tokenizer."
+            )
         self._num_model_parameters = sum(p.numel() for p in model.parameters())
         self._device_peak_flops = get_peak_flops(run_config.device_type)
 
@@ -93,7 +102,10 @@ class Trainer:
             if step % self.train_config.eval_generate_every == 0:
                 self._eval_generate_task(step=step)
 
-            if step % self.train_config.eval_hellaswag_every == 0:
+            if (
+                self.train_config.eval_hellaswag_every <= self.train_config.max_steps
+                and step % self.train_config.eval_hellaswag_every == 0
+            ):
                 metrics = self._eval_hellaswag_task(step=step)
                 if metrics:
                     self._log(step, metrics)
@@ -107,7 +119,12 @@ class Trainer:
             for micro_step in range(self.accumulation_steps):
                 x, y = self.train_loader.next_batch()
                 x, y = x.to(self.run_config.device), y.to(self.run_config.device)
-                with torch.autocast(device_type=self.run_config.device_type, dtype=torch.bfloat16):
+                ctx = (
+                    torch.autocast(device_type=self.run_config.device_type, dtype=torch.bfloat16)
+                    if self.run_config.device_type == "cuda"
+                    else contextlib.nullcontext()
+                )
+                with ctx:
                     _, loss = self.model(x, y)
                 loss /= self.accumulation_steps
                 loss_accum += loss.item()
@@ -173,7 +190,12 @@ class Trainer:
             for _ in range(self.train_config.eval_loss_steps):
                 x, y = self.val_loader.next_batch()
                 x, y = x.to(self.run_config.device), y.to(self.run_config.device)
-                with torch.autocast(device_type=self.run_config.device_type, dtype=torch.bfloat16):
+                ctx = (
+                    torch.autocast(device_type=self.run_config.device_type, dtype=torch.bfloat16)
+                    if self.run_config.device_type == "cuda"
+                    else contextlib.nullcontext()
+                )
+                with ctx:
                     _, loss = self.model(x, y)
                 loss /= self.train_config.eval_loss_steps
                 val_loss_accum += loss.item()
@@ -187,11 +209,14 @@ class Trainer:
     def _eval_generate_task(self, step: int) -> None:
         if self.master_process:
             prompt = "Today is a nice day, because"
-            idx = torch.tensor(self.enc.encode_ordinary(prompt), dtype=torch.long)
+            idx = torch.tensor(self.tokenizer.encode(prompt), dtype=torch.long)
             idx = idx.unsqueeze(0).repeat(5, 1)
             idx = idx.to(self.run_config.device)
             tokens = self.raw_model.generate(idx=idx, max_new_tokens=50)
-            completions = [self.enc.decode(tokens[i, :].tolist()) for i in range(tokens.shape[0])]  # type: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+            completions = [
+                self.tokenizer.decode(tokens[i, :].tolist())  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+                for i in range(tokens.shape[0])
+            ]
             for sample in completions:
                 logger.info(f"Step {step} sample: {sample}")
             if self.use_wandb:
@@ -208,7 +233,7 @@ class Trainer:
                     self.raw_model,
                     self.run_config.device,
                     self.run_config.device_type,
-                    enc=self.enc,
+                    enc=self.tokenizer,
                 )
             }
 

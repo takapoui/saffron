@@ -2,12 +2,12 @@ import contextlib
 import logging
 from typing import Any, cast
 
-import tiktoken
 import torch
 import torch.nn.functional as F
 from datasets import Dataset, load_dataset  # type: ignore[reportUnknownVariableType]
 
 from .models import BaseModel
+from .tokenizer import Tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +22,11 @@ def _get_hellaswag_dataset() -> Dataset:
     return _hellaswag_dataset
 
 
-def tokenize_example(
-    example: dict[str, Any], enc: tiktoken.Encoding
-) -> tuple[torch.Tensor, torch.Tensor]:
-    ctx_token: list[int] = enc.encode_ordinary(example["ctx"])
+def tokenize_example(example: dict[str, Any], enc: Tokenizer) -> tuple[torch.Tensor, torch.Tensor]:
+    ctx_token: list[int] = enc.encode(example["ctx"])
     ending_tokens_list: list[list[int]] = []
     for ending in example["endings"]:
-        ending_tokens_list.append(enc.encode_ordinary(" " + ending))
+        ending_tokens_list.append(enc.encode(" " + ending))
     tensor_length = len(ctx_token) + max(len(seq) for seq in ending_tokens_list)
     tokens = torch.zeros((4, tensor_length), dtype=torch.long)
     tokens[:, : len(ctx_token)] = torch.tensor(ctx_token, dtype=torch.long)
@@ -44,9 +42,7 @@ def tokenize_example(
 
 
 @torch.no_grad()
-def evaluate_hellaswag(
-    model: BaseModel, device: str, device_type: str, enc: tiktoken.Encoding
-) -> float:
+def evaluate_hellaswag(model: BaseModel, device: str, device_type: str, enc: Tokenizer) -> float:
     hellaswag = _get_hellaswag_dataset()
 
     model.eval()

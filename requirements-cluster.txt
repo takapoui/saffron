@@ -3,6 +3,7 @@
 datasets
 networkx>=3.0
 numpy<2
+Pillow>=9.1.0
 tiktoken
 transformers
 wandb

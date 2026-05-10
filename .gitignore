@@ -217,6 +217,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Mac OS artifacts
+.DS_Store
+
 # directories
 data/*
 logs/*

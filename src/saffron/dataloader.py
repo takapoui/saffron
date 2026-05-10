@@ -1,16 +1,16 @@
+import json
 import logging
 import multiprocessing as mp
 import os
 from collections.abc import Iterable
-from functools import partial
 from typing import cast
 
 import numpy as np
-import tiktoken
 import torch
 from datasets import load_dataset  # type: ignore[reportUnknownVariableType]
 
 from .config import DataConfig, PrepConfig, RunConfig
+from .tokenizer import Tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,20 @@ class DataLoader:
         self.B = data_config.batch_size
         self.T = data_config.seq_len
         self.rank = run_config.ddp_rank
+
+        meta_path = data_config.data_root / "meta.json"
+        assert meta_path.exists(), (
+            f"No meta.json found in {data_config.data_root}. Re-run data prep to generate it."
+        )
+        with open(meta_path) as f:
+            meta = json.load(f)
+        self.tokenizer_name: str = meta["tokenizer"]
+        if self.tokenizer_name != data_config.tokenizer:
+            raise ValueError(
+                f"Data in '{data_config.data_root}' was built with tokenizer "
+                f"'{self.tokenizer_name}' but config specifies '{data_config.tokenizer}'. "
+                "Re-run data prep with the correct tokenizer."
+            )
         self.world_size = run_config.ddp_world_size
 
         self.shards = sorted(
@@ -81,15 +95,25 @@ class DataLoader:
         return torch.tensor(npt, dtype=torch.long)
 
 
-def _tokenize(doc: dict[str, str], enc: tiktoken.Encoding) -> np.ndarray:
-    eot = enc.encode("<|endoftext|>", allowed_special={"<|endoftext|>"})[0]
-    tokens = np.array([eot] + enc.encode_ordinary(doc["text"]))
-    assert (tokens >= 0).all() and (tokens < 2**16).all()
-    return tokens.astype(np.uint16)
+_worker_enc: Tokenizer | None = None
+
+
+def _init_worker(tokenizer_name: str) -> None:
+    global _worker_enc
+    _worker_enc = Tokenizer.from_name(tokenizer_name, local_files_only=True)
+
+
+def _tokenize(doc: dict[str, str]) -> np.ndarray:
+    enc = _worker_enc
+    assert enc is not None
+    dtype = np.uint16 if enc.vocab_size <= 2**16 else np.uint32
+    tokens = np.array([enc.eot_token] + enc.encode(doc["text"]))
+    assert (tokens >= 0).all() and (tokens < np.iinfo(dtype).max).all()
+    return tokens.astype(dtype)
 
 
 def load_and_tokenize_dataset(prep_config: PrepConfig) -> None:
-    enc = tiktoken.get_encoding(prep_config.tokenizer)
+    enc = Tokenizer.from_name(prep_config.tokenizer)
     fw = cast(
         Iterable[dict[str, str]],
         load_dataset(
@@ -99,6 +123,10 @@ def load_and_tokenize_dataset(prep_config: PrepConfig) -> None:
         ),
     )
     os.makedirs(prep_config.data_root, exist_ok=True)
+    dtype = "uint16" if enc.vocab_size <= 2**16 else "uint32"
+    meta_path = os.path.join(prep_config.data_root, "meta.json")
+    with open(meta_path, "w") as f:
+        json.dump({"tokenizer": prep_config.tokenizer}, f)
 
     def _write_to_file(arr: np.ndarray, shard_index: int) -> None:
         # Use first documents as validation
@@ -107,12 +135,12 @@ def load_and_tokenize_dataset(prep_config: PrepConfig) -> None:
         np.save(filename, arr)
 
     nprocs = max(1, (os.cpu_count() or 2) // 2)
-    with mp.Pool(nprocs) as pool:
+    with mp.Pool(nprocs, initializer=_init_worker, initargs=(prep_config.tokenizer,)) as pool:
         shard_index = 0
-        all_tokens_np = np.empty((prep_config.shard_size,), dtype=np.uint16)
+        all_tokens_np = np.empty((prep_config.shard_size,), dtype=dtype)
         token_count = 0
 
-        for tokens in pool.imap(partial(_tokenize, enc=enc), fw, chunksize=16):
+        for tokens in pool.imap(_tokenize, fw, chunksize=16):
             if token_count + len(tokens) < prep_config.shard_size:
                 all_tokens_np[token_count : token_count + len(tokens)] = tokens
                 token_count += len(tokens)
