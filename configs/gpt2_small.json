@@ -26,13 +26,17 @@
     },
     "data": {
         "data_root": "data/gpt2/HuggingFaceFW_fineweb-edu",
-        "dataset": "HuggingFaceFW/fineweb-edu",
-        "name": "sample-10BT",
-        "shard_size": 100000000,
-        "dataset_split": "train",
-        "num_validation_shards": 1,
         "batch_size": 32,
         "seq_len": 1024,
         "tokenizer": "gpt2"
+    },
+    "prep": {
+        "data_root": "data/gpt2/HuggingFaceFW_fineweb-edu",
+        "dataset": "HuggingFaceFW/fineweb-edu",
+        "name": "sample-10BT",
+        "tokenizer": "gpt2",
+        "dataset_split": "train",
+        "shard_size": 100000000,
+        "num_validation_shards": 1
     }
 }

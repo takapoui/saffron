@@ -33,10 +33,12 @@ make install-cluster  # uses system torch (Lambda Stack) + installs remaining de
 PYTHONPATH=src .venv/bin/python scripts/prep_pretrain_data.py --config configs/gpt2_small.json
 ```
 
+Each config file contains a `prep` section with dataset and tokenization settings alongside the training config.
+
 **SFT:**
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/gsm8k_train.json
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/gsm8k_val.json
+PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/qwen_0.5b_gsm8k.json --key prep_train
+PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/qwen_0.5b_gsm8k.json --key prep_val
 ```
 
 ## Training
@@ -52,7 +54,7 @@ PYTHONPATH=src .venv/bin/torchrun --nproc_per_node=8 scripts/run_train.py --conf
 
 **SFT:**
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/run_train.py --config configs/qwen_0.5b_instruct_gsm8k.json
+PYTHONPATH=src .venv/bin/python scripts/run_train.py --config configs/qwen_0.5b_gsm8k.json
 ```
 
 ## Development

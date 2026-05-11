@@ -6,14 +6,14 @@
     "train": {
         "max_steps": 100,
         "warmup_steps": 10,
-        "max_lr": 0.0001,
+        "max_lr": 1e-4,
         "weight_decay": 0.1,
         "grad_clip": 1.0,
         "total_batch_size": 8192,
         "eval_loss_every": 10,
         "eval_loss_steps": 5,
         "eval_generate_every": 10,
-        "eval_hellaswag_every": 100000,
+        "eval_hellaswag_every": null,
         "checkpoint_every": 50,
         "checkpoint_dir": "checkpoints/qwen_0.5b_mps",
         "resume_from": null,
@@ -22,13 +22,17 @@
     },
     "data": {
         "data_root": "data/qwen2.5/roneneldan_TinyStories",
-        "dataset": "roneneldan/TinyStories",
-        "name": "",
-        "shard_size": 10000000,
-        "dataset_split": "train",
-        "num_validation_shards": 1,
         "batch_size": 4,
         "seq_len": 1024,
         "tokenizer": "Qwen/Qwen2.5-0.5B"
+    },
+    "prep": {
+        "data_root": "data/qwen2.5/roneneldan_TinyStories",
+        "dataset": "roneneldan/TinyStories",
+        "name": "",
+        "tokenizer": "Qwen/Qwen2.5-0.5B",
+        "dataset_split": "train",
+        "shard_size": 10000000,
+        "num_validation_shards": 1
     }
 }

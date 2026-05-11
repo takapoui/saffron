@@ -26,13 +26,17 @@
     },
     "data": {
         "data_root": "data/gpt2/roneneldan_TinyStories",
-        "dataset": "roneneldan/TinyStories",
-        "name": "",
-        "shard_size": 10000000,
-        "dataset_split": "train",
-        "num_validation_shards": 1,
         "batch_size": 4,
         "seq_len": 1024,
         "tokenizer": "gpt2"
+    },
+    "prep": {
+        "data_root": "data/gpt2/roneneldan_TinyStories",
+        "dataset": "roneneldan/TinyStories",
+        "name": "",
+        "tokenizer": "gpt2",
+        "dataset_split": "train",
+        "shard_size": 10000000,
+        "num_validation_shards": 1
     }
 }
