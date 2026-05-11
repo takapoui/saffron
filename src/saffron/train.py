@@ -12,7 +12,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from .config import RunConfig, TrainConfig
 from .data import BaseDataLoader
-from .eval import evaluate_generate, evaluate_hellaswag
+from .eval import evaluate_generate, evaluate_gsm8k, evaluate_hellaswag
 from .helpers import get_peak_flops
 from .models import BaseModel
 from .optim import get_lr_cosine
@@ -110,6 +110,14 @@ class Trainer:
                 and step % self.train_config.eval_hellaswag.every == 0
             ):
                 metrics = self._eval_hellaswag_task(step=step)
+                if metrics:
+                    self._log(step, metrics)
+
+            if (
+                self.train_config.eval_gsm8k.every is not None
+                and step % self.train_config.eval_gsm8k.every == 0
+            ):
+                metrics = self._eval_gsm8k_task(step=step)
                 if metrics:
                     self._log(step, metrics)
 
@@ -252,6 +260,26 @@ class Trainer:
             }
 
             return metrics
+        return {}
+
+    def _eval_gsm8k_task(self, step: int) -> dict[str, float]:
+        if self.master_process:
+            from .data.sft_dataloader import SFTDataLoader
+            from .tokenizer import HFTokenizer
+
+            if not isinstance(self.tokenizer, HFTokenizer) or not isinstance(
+                self.val_loader, SFTDataLoader
+            ):
+                return {}
+            return {
+                "gsm8k_accuracy": evaluate_gsm8k(
+                    model=self.raw_model,
+                    tokenizer=self.tokenizer,
+                    val_loader=self.val_loader,
+                    device=self.run_config.device,
+                    max_new_tokens=self.train_config.eval_gsm8k.max_tokens,
+                )
+            }
         return {}
 
     def _save_checkpoint(self, step: int, keep_last: int = 3) -> None:

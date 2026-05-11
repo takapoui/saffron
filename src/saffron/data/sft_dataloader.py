@@ -1,4 +1,5 @@
 import logging
+import math
 
 import numpy as np
 import torch
@@ -10,6 +11,19 @@ logger = logging.getLogger(__name__)
 
 class SFTDataLoader(BaseDataLoader):
     # Implicit assumption: T = max_length - 1
+
+    @property
+    def n_examples(self) -> int:
+        """Total number of examples across all shards (reads only file headers)."""
+        return sum(
+            np.load(s, mmap_mode="r").shape[0]
+            for s in self.token_shards  # type: ignore[reportUnknownMemberType]
+        )
+
+    @property
+    def n_steps(self) -> int:
+        """Number of next_batch() calls needed to cover all examples once."""
+        return math.ceil(self.n_examples / self.B)
 
     def reset(self) -> None:
         self.token_shards = sorted([s for s in self.shards if "tokens" in s])

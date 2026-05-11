@@ -27,6 +27,9 @@
         "eval_hellaswag": {
             "every": null
         },
+        "eval_gsm8k": {
+            "every": null
+        },
         "checkpoint_every": 500,
         "checkpoint_dir": "checkpoints/gpt2_small_mps",
         "resume_from": null,
