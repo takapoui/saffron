@@ -90,6 +90,7 @@ class Trainer:
             wandb.init(project=train_config.wandb_project, config=dataclasses.asdict(train_config))
             wandb.define_metric("tokens_seen")
             wandb.define_metric("*", step_metric="tokens_seen")
+            self._sample_rows: list[list[object]] = []
 
     def train(self) -> None:
         self.model.train()
@@ -232,9 +233,11 @@ class Trainer:
             for sample in completions:
                 logger.info(f"Step {step} sample: {sample}")
             if self.use_wandb:
-                table = wandb.Table(columns=["step", "tokens_seen", "completion"])
                 for sample in completions:
-                    table.add_data(step, self.tokens_seen, sample)  # type: ignore[reportUnknownMemberType]
+                    self._sample_rows.append([step, self.tokens_seen, sample])
+                table = wandb.Table(
+                    columns=["step", "tokens_seen", "completion"], data=self._sample_rows
+                )
                 wandb.log({"samples": table, "tokens_seen": self.tokens_seen}, step=step)
 
     def _eval_hellaswag_task(self, step: int) -> dict[str, float]:
