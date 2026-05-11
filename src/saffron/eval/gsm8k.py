@@ -36,7 +36,7 @@ def evaluate_gsm8k(
     val_loader: SFTDataLoader,
     device: str,
     max_new_tokens: int = 500,
-    evaluate_on: int = 50,  # TODO: remove cap and evaluate on full val set
+    gen_batch_size: int = 64,
 ) -> float:
     model.eval()
 
@@ -45,24 +45,18 @@ def evaluate_gsm8k(
         stop_token_ids.append(im_end)
     pad_id = stop_token_ids[0]
 
-    # Collect up to evaluate_on (prompt, ground_truth) pairs
+    # Collect all (prompt, ground_truth) pairs from val set
     examples: list[tuple[torch.Tensor, float]] = []
     val_loader.reset()
     for _ in range(val_loader.n_steps):
-        if len(examples) >= evaluate_on:
-            break
         x, y = val_loader.next_batch()
         for b in range(x.shape[0]):
-            if len(examples) >= evaluate_on:
-                break
             y_b = y[b]
             answer_mask = y_b != LABEL_IGNORE_INDEX
             if not answer_mask.any():
                 continue
             k = int(answer_mask.nonzero(as_tuple=False)[0].item())
             prompt_len = k + 1
-
-            # Ground truth from stored answer tokens
             answer_toks = cast(list[int], x[b, prompt_len:].tolist())  # type: ignore[reportUnknownMemberType]
             for stop_id in stop_token_ids:
                 with contextlib.suppress(ValueError):
@@ -70,61 +64,47 @@ def evaluate_gsm8k(
             ground_truth = extract_answer(tokenizer.decode(answer_toks))
             if ground_truth is None:
                 continue
-
             examples.append((x[b, :prompt_len], ground_truth))
 
-    if not examples:
-        model.train()
-        return 0.0
-
-    # Left-pad prompts into a batch and build attention mask
-    max_len = max(p.shape[0] for p, _ in examples)
-    input_ids = torch.full((len(examples), max_len), pad_id, dtype=torch.long, device=device)
-    attention_mask = torch.zeros((len(examples), max_len), dtype=torch.long, device=device)
-    for i, (prompt, _) in enumerate(examples):
-        L = prompt.shape[0]
-        input_ids[i, max_len - L :] = prompt.to(device)
-        attention_mask[i, max_len - L :] = 1
-
-    # Generate entire batch in one call with autocast
+    # Generate in batches
     device_type = device.split(":")[0]
     ctx = (
         torch.autocast(device_type=device_type, dtype=torch.bfloat16)
         if device_type == "cuda"
         else contextlib.nullcontext()
     )
-    with ctx:
-        generated = model.hf_model.generate(  # type: ignore[reportUnknownMemberType]
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
-            eos_token_id=stop_token_ids,
-            pad_token_id=pad_id,
-        )
-
-    # Score each example — new tokens start at max_len
     correct = 0
-    for i, (_, ground_truth) in enumerate(examples):
-        seq = cast(list[int], generated[i, max_len:].tolist())  # type: ignore[reportUnknownMemberType]
-        predicted = extract_answer(tokenizer.decode(seq))
-        hit = predicted is not None and predicted == ground_truth
+    for chunk_start in range(0, len(examples), gen_batch_size):
+        chunk = examples[chunk_start : chunk_start + gen_batch_size]
 
-        # TODO: remove per-example logging
-        logger.info(
-            "GSM8K [%d/%d] gt=%.4f pred=%s %s",
-            i + 1,
-            len(examples),
-            ground_truth,
-            f"{predicted:.4f}" if predicted is not None else "None",
-            "good" if hit else "bad",
-        )
+        max_len = max(p.shape[0] for p, _ in chunk)
+        input_ids = torch.full((len(chunk), max_len), pad_id, dtype=torch.long, device=device)
+        attention_mask = torch.zeros((len(chunk), max_len), dtype=torch.long, device=device)
+        for i, (prompt, _) in enumerate(chunk):
+            L = prompt.shape[0]
+            input_ids[i, max_len - L :] = prompt.to(device)
+            attention_mask[i, max_len - L :] = 1
 
-        if hit:
-            correct += 1
+        with ctx:
+            generated = model.hf_model.generate(  # type: ignore[reportUnknownMemberType]
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                max_new_tokens=max_new_tokens,
+                do_sample=False,
+                eos_token_id=stop_token_ids,
+                pad_token_id=pad_id,
+            )
+
+        for i, (_, ground_truth) in enumerate(chunk):
+            seq = cast(list[int], generated[i, max_len:].tolist())  # type: ignore[reportUnknownMemberType]
+            predicted = extract_answer(tokenizer.decode(seq))
+            if predicted is not None and predicted == ground_truth:
+                correct += 1
+
+        logger.info("GSM8K progress: %d/%d", chunk_start + len(chunk), len(examples))
 
     model.train()
     total = len(examples)
-    accuracy = correct / total
+    accuracy = correct / total if total > 0 else 0.0
     logger.info("GSM8K accuracy: %d/%d = %.4f", correct, total, accuracy)
     return accuracy
