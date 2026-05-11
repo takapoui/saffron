@@ -36,7 +36,7 @@ def evaluate_gsm8k(
     val_loader: SFTDataLoader,
     device: str,
     max_new_tokens: int = 500,
-    evaluate_on: int = 5,  # TODO: remove cap and evaluate on full val set
+    evaluate_on: int = 50,  # TODO: remove cap and evaluate on full val set
 ) -> float:
     model.eval()
 

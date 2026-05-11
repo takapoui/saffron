@@ -31,9 +31,7 @@ class EvalGenerateConfig:
             prompt=d["prompt"],
             samples=d["samples"],
             max_tokens=d["max_tokens"],
-            use_chat_template=d.get("use_chat_template", False),
-            temperature=d.get("temperature", 1.0),
-            top_k=d.get("top_k", 50),
+            **{k: d[k] for k in ("use_chat_template", "temperature", "top_k") if k in d},
         )
 
 
@@ -50,12 +48,11 @@ class EvalHellaswagConfig:
 class EvalGSM8KConfig:
     every: int | None
     max_tokens: int = 500
-    evaluate_on: int = 5  # TODO: remove cap and evaluate on full val set
+    evaluate_on: int = 50  # TODO: remove cap and evaluate on full val set
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> EvalGSM8KConfig:
         return cls(
             every=d.get("every"),
-            max_tokens=d.get("max_tokens", 500),
-            evaluate_on=d.get("evaluate_on", 5),
+            **{k: d[k] for k in ("max_tokens", "evaluate_on") if k in d},
         )
