@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numpy as np
 
@@ -47,6 +48,8 @@ def format_example(
 def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
     enc, fw, dtype = init_prep(prep_config)
     assert isinstance(enc, HFTokenizer)
+    split_dir = prep_config.data_root / prep_config.dataset_split
+    os.makedirs(split_dir, exist_ok=True)
 
     shard_examples: list[tuple[list[int], list[int]]] = []  # (tokens, labels) per example
     shard_index = 0
@@ -58,8 +61,8 @@ def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
         for i, (tokens, labels) in enumerate(examples):
             tokens_arr[i, : len(tokens)] = tokens
             labels_arr[i, : len(tokens)] = labels
-        np.save(prep_config.data_root / f"{idx:06d}_tokens", tokens_arr)
-        np.save(prep_config.data_root / f"{idx:06d}_labels", labels_arr)
+        np.save(split_dir / f"{idx:06d}_tokens", tokens_arr)
+        np.save(split_dir / f"{idx:06d}_labels", labels_arr)
 
     for example in fw:
         tokens, prompt_len = format_example(example, enc, system_prompt=prep_config.system_prompt)

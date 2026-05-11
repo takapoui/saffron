@@ -23,7 +23,6 @@ def init_prep(
     )
     os.makedirs(prep_config.data_root, exist_ok=True)
     dtype = "uint16" if enc.vocab_size <= 2**16 else "uint32"
-    meta_path = prep_config.data_root / "meta.json"
-    with open(meta_path, "w") as f:
+    with open(prep_config.data_root / "meta.json", "w") as f:
         json.dump({"tokenizer": prep_config.tokenizer}, f)
     return enc, fw, dtype

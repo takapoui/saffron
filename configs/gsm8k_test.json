@@ -1,12 +1,12 @@
 {
     "prep": {
-        "data_root": "data/qwen2.5-instruct/gsm8k/test",
+        "data_root": "data/qwen2.5-instruct/gsm8k",
         "dataset": "gsm8k",
         "name": "main",
         "tokenizer": "Qwen/Qwen2.5-0.5B-Instruct",
         "dataset_split": "test",
         "examples_per_shard": 500,
-        "max_length": 512,
+        "max_length": 513,
         "system_prompt": null
     }
 }

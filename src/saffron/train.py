@@ -11,7 +11,7 @@ import wandb
 from torch.nn.parallel import DistributedDataParallel
 
 from .config import RunConfig, TrainConfig
-from .data import DataLoader
+from .data import BaseDataLoader
 from .hellaswag import evaluate_hellaswag
 from .helpers import get_peak_flops
 from .models import BaseModel
@@ -25,8 +25,8 @@ class Trainer:
         self,
         model: BaseModel,
         optimizer: torch.optim.AdamW,
-        train_loader: DataLoader,
-        val_loader: DataLoader,
+        train_loader: BaseDataLoader,
+        val_loader: BaseDataLoader,
         train_config: TrainConfig,
         run_config: RunConfig,
     ) -> None:

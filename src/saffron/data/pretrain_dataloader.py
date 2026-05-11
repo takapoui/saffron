@@ -1,60 +1,22 @@
-import json
 import logging
 
 import numpy as np
 import torch
 
-from ..config import RunConfig
-from .config import DataConfig
+from .base_dataloader import BaseDataLoader
 
 logger = logging.getLogger(__name__)
 
 
-class DataLoader:
-    def __init__(
-        self,
-        data_config: DataConfig,
-        run_config: RunConfig,
-        split: str,
-    ) -> None:
-        # We assume data_root has files called train_xxx.npy and val_yyy.py
-        # The files are already tokenized
-        self.B = data_config.batch_size
-        self.T = data_config.seq_len
-        self.rank = run_config.ddp_rank
-
-        meta_path = data_config.data_root / "meta.json"
-        assert meta_path.exists(), (
-            f"No meta.json found in {data_config.data_root}. Re-run data prep to generate it."
-        )
-        with open(meta_path) as f:
-            meta = json.load(f)
-        self.tokenizer_name: str = meta["tokenizer"]
-        if self.tokenizer_name != data_config.tokenizer:
-            raise ValueError(
-                f"Data in '{data_config.data_root}' was built with tokenizer "
-                f"'{self.tokenizer_name}' but config specifies '{data_config.tokenizer}'. "
-                "Re-run data prep with the correct tokenizer."
-            )
-        self.world_size = run_config.ddp_world_size
-
-        self.shards = sorted(
-            [str(p) for p in data_config.data_root.iterdir() if p.name.startswith(split)]
-        )
-        assert len(self.shards) > 0, f"No shards found in {data_config.data_root} for split {split}"
-        if self.rank == 0:
-            logger.info(
-                f"Found {len(self.shards)} shards for split {split} in {data_config.data_root}"
-            )
-
-        self.reset()
-
+class PretrainDataLoader(BaseDataLoader):
     def reset(self) -> None:
         self.current_shard = 0
         self.tokens = self._load_shard(self.current_shard)
         self.current_position = self.B * self.T * self.rank
 
-    def advance(self, tokens: int) -> None:
+    def advance(self, samples: int) -> None:
+        # For PretrainDataLoader means advance tokens
+        tokens = samples
         while tokens > 0:
             remaining_in_shard = len(self.tokens) - self.current_position
             if tokens < remaining_in_shard:

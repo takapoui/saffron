@@ -10,7 +10,7 @@ import torch
 from torch.distributed import init_process_group
 
 from saffron.config import RunConfig, TrainConfig
-from saffron.data import DataConfig, DataLoader
+from saffron.data import DataConfig, PretrainDataLoader
 from saffron.helpers import get_default_device
 from saffron.models import GPT2, BaseConfig, BaseModel, HFModel
 from saffron.optim import configure_adamw
@@ -58,12 +58,12 @@ def main(
 ) -> None:
     model = model_cls(model_config)
     run_config = make_run_config()
-    train_loader = DataLoader(
+    train_loader = PretrainDataLoader(
         data_config=data_config,
         run_config=run_config,
         split="train",
     )
-    val_loader = DataLoader(
+    val_loader = PretrainDataLoader(
         data_config=data_config,
         run_config=run_config,
         split="val",

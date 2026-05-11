@@ -29,11 +29,13 @@ def _tokenize(doc: dict[str, str]) -> np.ndarray:
 
 def load_and_tokenize_dataset(prep_config: PretrainPrepConfig) -> None:
     _, fw, dtype = init_prep(prep_config)
+    for split in ("train", "val"):
+        os.makedirs(prep_config.data_root / split, exist_ok=True)
 
     def _write_to_file(arr: np.ndarray, shard_index: int) -> None:
         # Use first documents as validation
-        sp = "val" if shard_index < prep_config.num_validation_shards else "train"
-        filename = os.path.join(prep_config.data_root, f"{sp}_{shard_index:06d}")
+        split = "val" if shard_index < prep_config.num_validation_shards else "train"
+        filename = prep_config.data_root / split / f"{shard_index:06d}"
         np.save(filename, arr)
 
     nprocs = max(1, (os.cpu_count() or 2) // 2)
