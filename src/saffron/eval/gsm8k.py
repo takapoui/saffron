@@ -36,6 +36,7 @@ def evaluate_gsm8k(
     val_loader: SFTDataLoader,
     device: str,
     max_new_tokens: int = 500,
+    evaluate_on: int = 5,  # TODO: remove cap and evaluate on full val set
 ) -> float:
     model.eval()
 
@@ -48,9 +49,13 @@ def evaluate_gsm8k(
 
     val_loader.reset()
     for _ in range(val_loader.n_steps):
+        if total >= evaluate_on:
+            break
         x, y = val_loader.next_batch()
 
         for b in range(x.shape[0]):
+            if total >= evaluate_on:
+                break
             y_b = y[b]
             # Find where answer starts: first position in y where label != LABEL_IGNORE_INDEX
             answer_mask = y_b != LABEL_IGNORE_INDEX
@@ -80,8 +85,19 @@ def evaluate_gsm8k(
             )
             seq = cast(list[int], generated[0, prompt_len:].tolist())  # type: ignore[reportUnknownMemberType]
             predicted = extract_answer(tokenizer.decode(seq))
+            hit = predicted is not None and predicted == ground_truth
 
-            if predicted is not None and predicted == ground_truth:
+            # TODO: remove per-example logging
+            logger.info(
+                "GSM8K [%d/%d] gt=%.4f pred=%s %s",
+                total + 1,
+                evaluate_on,
+                ground_truth,
+                f"{predicted:.4f}" if predicted is not None else "None",
+                "good" if hit else "bad",
+            )
+
+            if hit:
                 correct += 1
             total += 1
 
