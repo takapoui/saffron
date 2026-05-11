@@ -32,9 +32,9 @@ class Trainer:
     ) -> None:
         tokenizer = model.get_tokenizer()
         model = model.to(run_config.device)
+        self.raw_model = model
         if model.supports_compile(run_config.device_type):
             model = cast(BaseModel, torch.compile(model))  # pyright: ignore[reportUnknownMemberType]
-        self.raw_model = model
 
         if run_config.use_ddp:
             self.model = DistributedDataParallel(
@@ -265,10 +265,13 @@ class Trainer:
     def _eval_gsm8k_task(self, step: int) -> dict[str, float]:
         if self.master_process:
             from .data.sft_dataloader import SFTDataLoader
+            from .models.hf import HFModel
             from .tokenizer import HFTokenizer
 
-            if not isinstance(self.tokenizer, HFTokenizer) or not isinstance(
-                self.val_loader, SFTDataLoader
+            if (
+                not isinstance(self.tokenizer, HFTokenizer)
+                or not isinstance(self.val_loader, SFTDataLoader)
+                or not isinstance(self.raw_model, HFModel)
             ):
                 return {}
             return {
