@@ -278,6 +278,7 @@ class Trainer:
                     val_loader=self.val_loader,
                     device=self.run_config.device,
                     max_new_tokens=self.train_config.eval_gsm8k.max_tokens,
+                    evaluate_on=self.train_config.eval_gsm8k.evaluate_on,
                 )
             }
         return {}

@@ -50,7 +50,12 @@ class EvalHellaswagConfig:
 class EvalGSM8KConfig:
     every: int | None
     max_tokens: int = 500
+    evaluate_on: int = 5  # TODO: remove cap and evaluate on full val set
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> EvalGSM8KConfig:
-        return cls(every=d.get("every"), max_tokens=d.get("max_tokens", 500))
+        return cls(
+            every=d.get("every"),
+            max_tokens=d.get("max_tokens", 500),
+            evaluate_on=d.get("evaluate_on", 5),
+        )
