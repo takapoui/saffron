@@ -49,7 +49,7 @@ def format_example(
 def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
     enc, fw, dtype = init_prep(prep_config)
     assert isinstance(enc, HFTokenizer)
-    split_dir = prep_config.data_root / prep_config.dataset_split
+    split_dir = prep_config.data_root / prep_config.output_split.value
     os.makedirs(split_dir, exist_ok=True)
 
     shard_examples: list[tuple[list[int], list[int]]] = []  # (tokens, labels) per example

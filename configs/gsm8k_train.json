@@ -7,6 +7,7 @@
         "dataset_split": "train",
         "examples_per_shard": 500,
         "max_length": 513,
-        "system_prompt": null
+        "system_prompt": null,
+        "output_split": "train"
     }
 }

@@ -36,17 +36,23 @@ PYTHONPATH=src .venv/bin/python scripts/prep_pretrain_data.py --config configs/g
 **SFT:**
 ```bash
 PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/gsm8k_train.json
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/gsm8k_test.json
+PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/gsm8k_val.json
 ```
 
 ## Training
 
+**Pretraining:**
 ```bash
 # single device (CPU, MPS, or CUDA)
 PYTHONPATH=src .venv/bin/python scripts/run_train.py --config configs/gpt2_small.json
 
 # multi GPU (e.g. 8 GPUs)
 PYTHONPATH=src .venv/bin/torchrun --nproc_per_node=8 scripts/run_train.py --config configs/gpt2_small.json
+```
+
+**SFT:**
+```bash
+PYTHONPATH=src .venv/bin/python scripts/run_train.py --config configs/qwen_0.5b_instruct_gsm8k.json
 ```
 
 ## Development

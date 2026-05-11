@@ -260,7 +260,11 @@ class Trainer:
 
     def _log(self, step: int, metrics: dict[str, float]) -> None:
         if self.master_process:
-            info = [f"step: {step:5d}"] + [f"{key}: {val:.4f}" for key, val in metrics.items()]
+
+            def _fmt(key: str, val: float) -> str:
+                return f"{key}: {val:.2e}" if key == "lr" else f"{key}: {val:.4f}"
+
+            info = [f"step: {step:5d}"] + [_fmt(k, v) for k, v in metrics.items()]
             logger.info(" | ".join(info))
 
         if self.use_wandb:

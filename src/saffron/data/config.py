@@ -1,8 +1,27 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+if sys.version_info >= (3, 11):  # noqa: UP036
+    from enum import StrEnum
+else:
+    from enum import Enum
+
+    class StrEnum(str, Enum):  # noqa: UP042
+        pass
+
+
+class OutputSplit(StrEnum):
+    TRAIN = "train"
+    VAL = "val"
+
+
+class LoaderType(StrEnum):
+    PRETRAIN = "pretrain"
+    SFT = "sft"
 
 
 @dataclass
@@ -11,6 +30,7 @@ class DataConfig:
     batch_size: int
     seq_len: int
     tokenizer: str
+    loader_type: LoaderType = LoaderType.PRETRAIN
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> DataConfig:
@@ -19,6 +39,7 @@ class DataConfig:
             batch_size=d["batch_size"],
             seq_len=d["seq_len"],
             tokenizer=d["tokenizer"],
+            loader_type=LoaderType(d.get("loader_type", LoaderType.PRETRAIN)),
         )
 
 
@@ -61,6 +82,7 @@ class SFTPrepConfig(BasePrepConfig):
     examples_per_shard: int
     max_length: int
     system_prompt: str | None
+    output_split: OutputSplit
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> SFTPrepConfig:
@@ -69,4 +91,5 @@ class SFTPrepConfig(BasePrepConfig):
             examples_per_shard=d["examples_per_shard"],
             max_length=d["max_length"],
             system_prompt=d.get("system_prompt"),
+            output_split=OutputSplit(d["output_split"]),
         )
