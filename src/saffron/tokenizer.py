@@ -86,6 +86,12 @@ class HFTokenizer(Tokenizer):
     def vocab_size(self) -> int:
         return self._tok.vocab_size
 
+    @property
+    def im_end_token(self) -> int | None:
+        """Token ID for <|im_end|>, used as turn-end stop token in chat templates."""
+        result = self._tok.convert_tokens_to_ids("<|im_end|>")  # pyright: ignore[reportUnknownMemberType]
+        return result if isinstance(result, int) else None
+
     def apply_chat_template(
         self,
         messages: list[dict[str, str]],
