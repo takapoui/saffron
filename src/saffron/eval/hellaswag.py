@@ -6,9 +6,9 @@ import torch
 import torch.nn.functional as F
 from datasets import Dataset, load_dataset  # type: ignore[reportUnknownVariableType]
 
-from .constants import LABEL_IGNORE_INDEX
-from .models import BaseModel
-from .tokenizer import Tokenizer
+from ..constants import LABEL_IGNORE_INDEX
+from ..models import BaseModel
+from ..tokenizer import Tokenizer
 
 logger = logging.getLogger(__name__)
 

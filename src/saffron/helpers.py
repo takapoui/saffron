@@ -21,8 +21,7 @@ _PEAK_FLOPS_TABLE: tuple[tuple[list[str], float], ...] = (
     (["h100", "pcie"], 756e12),
     (["h100"], 989e12),  # SXM5
     # NVIDIA Ampere data center
-    (["a100", "pcie"], 77.97e12),  # A100 PCIe 40GB
-    (["a100"], 312e12),  # A100 SXM4 40GB / 80GB
+    (["a100"], 312e12),  # A100 PCIe / SXM4
     (["a6000"], 77.4e12),  # RTX A6000 48GB (Ampere)
     (["a10"], 125e12),  # A10 24GB PCIe
     # NVIDIA Ada data center

@@ -4,17 +4,29 @@
         "hf_model_name": "Qwen/Qwen2.5-0.5B"
     },
     "train": {
-        "max_steps": 116,
-        "warmup_steps": 20,
+        "max_steps": 348,
+        "warmup_steps": 50,
         "max_lr": 2e-5,
         "weight_decay": 0.1,
         "grad_clip": 1.0,
         "total_batch_size": 32768,
-        "eval_loss_every": 5,
-        "eval_loss_steps": 25,
-        "eval_generate_every": null,
-        "eval_hellaswag_every": null,
-        "checkpoint_every": 100,
+        "eval_loss": {
+            "every": 25,
+            "steps": 25
+        },
+        "eval_generate": {
+            "every": 50,
+            "prompt": "I have 5 boxes with 8 apples each. I eat 3 apples. How many do I have left?",
+            "samples": 3,
+            "max_tokens": 200,
+            "use_chat_template": true,
+            "temperature": 0.7,
+            "top_k": 50
+        },
+        "eval_hellaswag": {
+            "every": null
+        },
+        "checkpoint_every": 300,
         "checkpoint_dir": "checkpoints/qwen_0.5b_gsm8k",
         "resume_from": null,
         "log_every": 10,
