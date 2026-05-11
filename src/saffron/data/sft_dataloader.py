@@ -19,15 +19,15 @@ class SFTDataLoader(BaseDataLoader):
         self.tokens, self.labels = self._load_shard(self.current_shard)
         self.current_example = self.B * self.rank
 
-    def advance(self, samples: int) -> None:
-        # For SFTDataLoader means advance examples
-        while samples > 0:
+    def advance(self, tokens: int) -> None:
+        examples = tokens // self.T
+        while examples > 0:
             remaining_in_shard = self.tokens.shape[0] - self.current_example
-            if samples < remaining_in_shard:
-                self.current_example += samples
-                samples = 0
+            if examples < remaining_in_shard:
+                self.current_example += examples
+                examples = 0
             else:
-                samples -= remaining_in_shard
+                examples -= remaining_in_shard
                 self.current_shard = (self.current_shard + 1) % len(self.token_shards)
                 self.tokens, self.labels = self._load_shard(self.current_shard)
                 self.current_example = self.B * self.rank

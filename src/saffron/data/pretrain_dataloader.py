@@ -14,9 +14,7 @@ class PretrainDataLoader(BaseDataLoader):
         self.tokens = self._load_shard(self.current_shard)
         self.current_position = self.B * self.T * self.rank
 
-    def advance(self, samples: int) -> None:
-        # For PretrainDataLoader means advance tokens
-        tokens = samples
+    def advance(self, tokens: int) -> None:
         while tokens > 0:
             remaining_in_shard = len(self.tokens) - self.current_position
             if tokens < remaining_in_shard:

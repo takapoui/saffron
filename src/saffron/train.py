@@ -99,11 +99,14 @@ class Trainer:
                 metrics = {"eval_loss": self._eval_loss()}
                 self._log(step, metrics)
 
-            if step % self.train_config.eval_generate_every == 0:
+            if (
+                self.train_config.eval_generate_every is not None
+                and step % self.train_config.eval_generate_every == 0
+            ):
                 self._eval_generate_task(step=step)
 
             if (
-                self.train_config.eval_hellaswag_every <= self.train_config.max_steps
+                self.train_config.eval_hellaswag_every is not None
                 and step % self.train_config.eval_hellaswag_every == 0
             ):
                 metrics = self._eval_hellaswag_task(step=step)
@@ -179,6 +182,13 @@ class Trainer:
             }
             if step % self.train_config.log_every == 0:
                 self._log(step, metrics)
+
+        last_step = self.train_config.max_steps - 1
+        if last_step % self.train_config.eval_loss_every != 0:
+            self._log(last_step, {"eval_loss": self._eval_loss()})
+        if self.master_process and last_step % self.train_config.checkpoint_every != 0:
+            self._save_checkpoint(last_step)
+
         if self.use_wandb:
             wandb.finish()
 

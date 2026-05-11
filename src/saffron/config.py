@@ -20,8 +20,8 @@ class TrainConfig:
     # eval
     eval_loss_every: int
     eval_loss_steps: int  # how many val batches to average over
-    eval_generate_every: int
-    eval_hellaswag_every: int
+    eval_generate_every: int | None
+    eval_hellaswag_every: int | None
 
     # checkpointing
     checkpoint_dir: Path
@@ -43,8 +43,8 @@ class TrainConfig:
             total_batch_size=d["total_batch_size"],
             eval_loss_every=d["eval_loss_every"],
             eval_loss_steps=d["eval_loss_steps"],
-            eval_generate_every=d["eval_generate_every"],
-            eval_hellaswag_every=d["eval_hellaswag_every"],
+            eval_generate_every=d.get("eval_generate_every"),
+            eval_hellaswag_every=d.get("eval_hellaswag_every"),
             checkpoint_dir=Path(d["checkpoint_dir"]),
             checkpoint_every=d["checkpoint_every"],
             resume_from=Path(d["resume_from"]) if d["resume_from"] is not None else None,

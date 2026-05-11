@@ -53,7 +53,7 @@ class BaseDataLoader(ABC):
         pass
 
     @abstractmethod
-    def advance(self, samples: int) -> None:
+    def advance(self, tokens: int) -> None:
         pass
 
     @abstractmethod
