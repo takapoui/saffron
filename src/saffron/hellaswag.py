@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from datasets import Dataset, load_dataset  # type: ignore[reportUnknownVariableType]
 
+from .constants import LABEL_IGNORE_INDEX
 from .models import BaseModel
 from .tokenizer import Tokenizer
 
@@ -70,7 +71,7 @@ def evaluate_hellaswag(model: BaseModel, device: str, device_type: str, enc: Tok
                     logits.reshape(-1, logits.shape[-1]),
                     y.reshape(-1),
                     reduction="none",
-                    ignore_index=-1,
+                    ignore_index=LABEL_IGNORE_INDEX,
                 )
                 .reshape(4, -1)
                 .sum(dim=1)

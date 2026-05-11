@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoConfig, AutoModelForCausalLM
 
+from ..constants import LABEL_IGNORE_INDEX
 from ..tokenizer import HFTokenizer, Tokenizer
 from .base_model import BaseModel
 from .config import BaseConfig
@@ -55,6 +56,6 @@ class HFModel(BaseModel):
             loss = F.cross_entropy(
                 logits.view(-1, logits.size(-1)),
                 target.view(-1),
-                ignore_index=-1,
+                ignore_index=LABEL_IGNORE_INDEX,
             )
         return logits, loss

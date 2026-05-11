@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from ..constants import LABEL_IGNORE_INDEX
 from ..tokenizer import TiktokenTokenizer, Tokenizer
 from .base_model import BaseModel
 from .config import GPT2Config
@@ -121,7 +122,7 @@ class GPT2(BaseModel):
             loss = F.cross_entropy(
                 logits.reshape(B * T, self.config.vocab_size),
                 target.reshape(B * T),
-                ignore_index=-1,
+                ignore_index=LABEL_IGNORE_INDEX,
             )
 
         return logits, loss

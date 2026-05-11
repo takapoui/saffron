@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 
+from ..constants import LABEL_IGNORE_INDEX
 from ..tokenizer import HFTokenizer
 from ._prep_utils import init_prep
 from .config import SFTPrepConfig
@@ -57,7 +58,7 @@ def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
     def _write(examples: list[tuple[list[int], list[int]]], idx: int, dtype: str) -> None:
         n = len(examples)
         tokens_arr = np.full((n, prep_config.max_length), enc.eot_token, dtype=dtype)
-        labels_arr = np.full((n, prep_config.max_length), -1, dtype=np.int32)
+        labels_arr = np.full((n, prep_config.max_length), LABEL_IGNORE_INDEX, dtype=np.int32)
         for i, (tokens, labels) in enumerate(examples):
             tokens_arr[i, : len(tokens)] = tokens
             labels_arr[i, : len(tokens)] = labels
@@ -71,7 +72,7 @@ def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
             logger.info("Skip: prompt alone exceeds max_length.")
             continue
 
-        labels = [-1] * prompt_len + tokens[prompt_len:]
+        labels = [LABEL_IGNORE_INDEX] * prompt_len + tokens[prompt_len:]
 
         if len(tokens) > prep_config.max_length:
             logger.info(f"Truncate example with length {len(tokens)} to {prep_config.max_length}")
