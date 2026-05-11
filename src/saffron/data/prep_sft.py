@@ -75,9 +75,8 @@ def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
         labels = [LABEL_IGNORE_INDEX] * prompt_len + tokens[prompt_len:]
 
         if len(tokens) > prep_config.max_length:
-            logger.info(f"Truncate example with length {len(tokens)} to {prep_config.max_length}")
-            tokens = tokens[: prep_config.max_length]
-            labels = labels[: prep_config.max_length]
+            logger.info(f"Skip: example with length {len(tokens)} exceeds max_length.")
+            continue
         shard_examples.append((tokens, labels))
 
         if len(shard_examples) == prep_config.examples_per_shard:
