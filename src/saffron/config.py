@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .eval import EvalGenerateConfig, EvalHellaswagConfig, EvalLossConfig
+from .eval import EvalGenerateConfig, EvalGSM8KConfig, EvalHellaswagConfig, EvalLossConfig
 
 
 @dataclass
@@ -23,6 +23,7 @@ class TrainConfig:
     eval_loss: EvalLossConfig
     eval_generate: EvalGenerateConfig
     eval_hellaswag: EvalHellaswagConfig
+    eval_gsm8k: EvalGSM8KConfig
 
     # checkpointing
     checkpoint_dir: Path
@@ -45,6 +46,7 @@ class TrainConfig:
             eval_loss=EvalLossConfig.from_dict(d["eval_loss"]),
             eval_generate=EvalGenerateConfig.from_dict(d["eval_generate"]),
             eval_hellaswag=EvalHellaswagConfig.from_dict(d["eval_hellaswag"]),
+            eval_gsm8k=EvalGSM8KConfig.from_dict(d["eval_gsm8k"]),
             checkpoint_dir=Path(d["checkpoint_dir"]),
             checkpoint_every=d["checkpoint_every"],
             resume_from=Path(d["resume_from"]) if d["resume_from"] is not None else None,

@@ -23,6 +23,9 @@
         "eval_hellaswag": {
             "every": null
         },
+        "eval_gsm8k": {
+            "every": null
+        },
         "checkpoint_every": 50,
         "checkpoint_dir": "checkpoints/qwen_0.5b_mps",
         "resume_from": null,

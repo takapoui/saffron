@@ -44,3 +44,13 @@ class EvalHellaswagConfig:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> EvalHellaswagConfig:
         return cls(every=d.get("every"))
+
+
+@dataclass
+class EvalGSM8KConfig:
+    every: int | None
+    max_tokens: int = 500
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> EvalGSM8KConfig:
+        return cls(every=d.get("every"), max_tokens=d.get("max_tokens", 500))

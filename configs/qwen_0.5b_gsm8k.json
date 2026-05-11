@@ -26,6 +26,10 @@
         "eval_hellaswag": {
             "every": null
         },
+        "eval_gsm8k": {
+            "every": 50,
+            "max_tokens": 500
+        },
         "checkpoint_every": 300,
         "checkpoint_dir": "checkpoints/qwen_0.5b_gsm8k",
         "resume_from": null,
