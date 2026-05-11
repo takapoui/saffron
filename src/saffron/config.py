@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .eval import EvalGenerateConfig, EvalHellaswagConfig, EvalLossConfig
+
 
 @dataclass
 class TrainConfig:
@@ -18,10 +20,9 @@ class TrainConfig:
     total_batch_size: int  # 524288 if cuda else 16384
 
     # eval
-    eval_loss_every: int
-    eval_loss_steps: int  # how many val batches to average over
-    eval_generate_every: int | None
-    eval_hellaswag_every: int | None
+    eval_loss: EvalLossConfig
+    eval_generate: EvalGenerateConfig
+    eval_hellaswag: EvalHellaswagConfig
 
     # checkpointing
     checkpoint_dir: Path
@@ -41,10 +42,9 @@ class TrainConfig:
             weight_decay=d["weight_decay"],
             grad_clip=d["grad_clip"],
             total_batch_size=d["total_batch_size"],
-            eval_loss_every=d["eval_loss_every"],
-            eval_loss_steps=d["eval_loss_steps"],
-            eval_generate_every=d.get("eval_generate_every"),
-            eval_hellaswag_every=d.get("eval_hellaswag_every"),
+            eval_loss=EvalLossConfig.from_dict(d["eval_loss"]),
+            eval_generate=EvalGenerateConfig.from_dict(d["eval_generate"]),
+            eval_hellaswag=EvalHellaswagConfig.from_dict(d["eval_hellaswag"]),
             checkpoint_dir=Path(d["checkpoint_dir"]),
             checkpoint_every=d["checkpoint_every"],
             resume_from=Path(d["resume_from"]) if d["resume_from"] is not None else None,

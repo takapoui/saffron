@@ -12,7 +12,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from .config import RunConfig, TrainConfig
 from .data import BaseDataLoader
-from .hellaswag import evaluate_hellaswag
+from .eval import evaluate_generate, evaluate_hellaswag
 from .helpers import get_peak_flops
 from .models import BaseModel
 from .optim import get_lr_cosine
@@ -90,24 +90,23 @@ class Trainer:
             wandb.init(project=train_config.wandb_project, config=dataclasses.asdict(train_config))
             wandb.define_metric("tokens_seen")
             wandb.define_metric("*", step_metric="tokens_seen")
-            self._sample_table = wandb.Table(columns=["step", "tokens_seen", "completion"])
 
     def train(self) -> None:
         self.model.train()
         for step in range(self.step, self.train_config.max_steps):
-            if step % self.train_config.eval_loss_every == 0:
+            if step % self.train_config.eval_loss.every == 0:
                 metrics = {"eval_loss": self._eval_loss()}
                 self._log(step, metrics)
 
             if (
-                self.train_config.eval_generate_every is not None
-                and step % self.train_config.eval_generate_every == 0
+                self.train_config.eval_generate.every is not None
+                and step % self.train_config.eval_generate.every == 0
             ):
                 self._eval_generate_task(step=step)
 
             if (
-                self.train_config.eval_hellaswag_every is not None
-                and step % self.train_config.eval_hellaswag_every == 0
+                self.train_config.eval_hellaswag.every is not None
+                and step % self.train_config.eval_hellaswag.every == 0
             ):
                 metrics = self._eval_hellaswag_task(step=step)
                 if metrics:
@@ -184,7 +183,7 @@ class Trainer:
                 self._log(step, metrics)
 
         last_step = self.train_config.max_steps - 1
-        if last_step % self.train_config.eval_loss_every != 0:
+        if last_step % self.train_config.eval_loss.every != 0:
             self._log(last_step, {"eval_loss": self._eval_loss()})
         if self.master_process and last_step % self.train_config.checkpoint_every != 0:
             self._save_checkpoint(last_step)
@@ -197,7 +196,7 @@ class Trainer:
         self.model.eval()
         with torch.no_grad():
             val_loss_accum = 0.0
-            for _ in range(self.train_config.eval_loss_steps):
+            for _ in range(self.train_config.eval_loss.steps):
                 x, y = self.val_loader.next_batch()
                 x, y = x.to(self.run_config.device), y.to(self.run_config.device)
                 ctx = (
@@ -207,7 +206,7 @@ class Trainer:
                 )
                 with ctx:
                     _, loss = self.model(x, y)
-                loss /= self.train_config.eval_loss_steps
+                loss /= self.train_config.eval_loss.steps
                 val_loss_accum += loss.item()
             if self.run_config.use_ddp:
                 val_loss_tensor = torch.tensor(val_loss_accum, device=self.run_config.device)
@@ -218,23 +217,25 @@ class Trainer:
 
     def _eval_generate_task(self, step: int) -> None:
         if self.master_process:
-            prompt = "Today is a nice day, because"
-            idx = torch.tensor(self.tokenizer.encode(prompt), dtype=torch.long)
-            idx = idx.unsqueeze(0).repeat(5, 1)
-            idx = idx.to(self.run_config.device)
-            tokens = self.raw_model.generate(idx=idx, max_new_tokens=50)
-            completions = [
-                self.tokenizer.decode(tokens[i, :].tolist())  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
-                for i in range(tokens.shape[0])
-            ]
+            cfg = self.train_config.eval_generate
+            completions = evaluate_generate(
+                model=self.raw_model,
+                tokenizer=self.tokenizer,
+                device=self.run_config.device,
+                prompt=cfg.prompt,
+                n_samples=cfg.samples,
+                max_new_tokens=cfg.max_tokens,
+                use_chat_template=cfg.use_chat_template,
+                temperature=cfg.temperature,
+                top_k=cfg.top_k,
+            )
             for sample in completions:
                 logger.info(f"Step {step} sample: {sample}")
             if self.use_wandb:
+                table = wandb.Table(columns=["step", "tokens_seen", "completion"])
                 for sample in completions:
-                    self._sample_table.add_data(step, self.tokens_seen, sample)  # type: ignore[reportUnknownMemberType]
-                wandb.log(
-                    {"samples": self._sample_table, "tokens_seen": self.tokens_seen}, step=step
-                )
+                    table.add_data(step, self.tokens_seen, sample)  # type: ignore[reportUnknownMemberType]
+                wandb.log({"samples": table, "tokens_seen": self.tokens_seen}, step=step)
 
     def _eval_hellaswag_task(self, step: int) -> dict[str, float]:
         if self.master_process:

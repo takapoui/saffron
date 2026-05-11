@@ -10,10 +10,19 @@
         "weight_decay": 0.1,
         "grad_clip": 1.0,
         "total_batch_size": 8192,
-        "eval_loss_every": 10,
-        "eval_loss_steps": 5,
-        "eval_generate_every": 10,
-        "eval_hellaswag_every": null,
+        "eval_loss": {
+            "every": 10,
+            "steps": 5
+        },
+        "eval_generate": {
+            "every": 10,
+            "prompt": "Today is a nice day, because",
+            "samples": 5,
+            "max_tokens": 50
+        },
+        "eval_hellaswag": {
+            "every": null
+        },
         "checkpoint_every": 50,
         "checkpoint_dir": "checkpoints/qwen_0.5b_mps",
         "resume_from": null,
