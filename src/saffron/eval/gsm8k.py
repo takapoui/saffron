@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 
 from ..constants import LABEL_IGNORE_INDEX
-from ..models.base_model import BaseModel
+from ..model.base_model import BaseModel
 
 if TYPE_CHECKING:
     from ..data.sft_dataloader import SFTDataLoader

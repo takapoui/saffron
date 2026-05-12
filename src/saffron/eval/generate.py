@@ -4,7 +4,7 @@ from typing import cast
 
 import torch
 
-from ..models import BaseModel
+from ..model import BaseModel
 from ..tokenizer import HFTokenizer
 
 

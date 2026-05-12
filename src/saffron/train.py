@@ -15,7 +15,7 @@ from .data import BaseDataLoader
 from .data.sft_dataloader import SFTDataLoader
 from .eval import evaluate_generate, evaluate_gsm8k, evaluate_hellaswag
 from .helpers import get_peak_flops
-from .models import BaseModel
+from .model import BaseModel
 from .optim import get_lr_cosine
 
 logger = logging.getLogger(__name__)
