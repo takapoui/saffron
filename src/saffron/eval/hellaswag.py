@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import logging
 from typing import Any, cast
@@ -43,8 +45,9 @@ def tokenize_example(example: dict[str, Any], enc: Tokenizer) -> tuple[torch.Ten
 
 
 @torch.no_grad()
-def evaluate_hellaswag(model: BaseModel, device: str, device_type: str, enc: Tokenizer) -> float:
+def evaluate_hellaswag(model: BaseModel, device: str, device_type: str) -> float:
     hellaswag = _get_hellaswag_dataset()
+    enc = model.get_tokenizer()
 
     model.eval()
     example_count = 0

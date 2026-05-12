@@ -8,8 +8,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 
 from ..constants import LABEL_IGNORE_INDEX
-from ..models.hf import HFModel
-from ..tokenizer import HFTokenizer
+from ..models.base_model import BaseModel
 
 if TYPE_CHECKING:
     from ..data.sft_dataloader import SFTDataLoader
@@ -31,18 +30,18 @@ def extract_answer(text: str) -> float | None:
 
 @torch.no_grad()
 def evaluate_gsm8k(
-    model: HFModel,
-    tokenizer: HFTokenizer,
+    model: BaseModel,
     val_loader: SFTDataLoader,
     device: str,
-    max_new_tokens: int = 500,
-    gen_batch_size: int = 64,
+    device_type: str,
+    max_new_tokens: int,
+    gen_batch_size: int,
 ) -> float:
     model.eval()
+    tokenizer = model.get_tokenizer()
 
-    stop_token_ids = [tokenizer.eot_token]
-    if (im_end := tokenizer.im_end_token) is not None:
-        stop_token_ids.append(im_end)
+    stop_token_ids = tokenizer.stop_token_ids
+    stop_set = set(stop_token_ids)
     pad_id = stop_token_ids[0]
 
     # Collect all (prompt, ground_truth) pairs from val set
@@ -58,16 +57,16 @@ def evaluate_gsm8k(
             k = int(answer_mask.nonzero(as_tuple=False)[0].item())
             prompt_len = k + 1
             answer_toks = cast(list[int], x[b, prompt_len:].tolist())  # type: ignore[reportUnknownMemberType]
-            for stop_id in stop_token_ids:
-                with contextlib.suppress(ValueError):
-                    answer_toks = answer_toks[: answer_toks.index(stop_id)]
-            ground_truth = extract_answer(tokenizer.decode(answer_toks))
+            stop = len(answer_toks)
+            for j, tok in enumerate(answer_toks):
+                if tok in stop_set:
+                    stop = j
+                    break
+            ground_truth = extract_answer(tokenizer.decode(answer_toks[:stop]))
             if ground_truth is None:
                 continue
             examples.append((x[b, :prompt_len], ground_truth))
 
-    # Generate in batches
-    device_type = device.split(":")[0]
     ctx = (
         torch.autocast(device_type=device_type, dtype=torch.bfloat16)
         if device_type == "cuda"
@@ -76,31 +75,28 @@ def evaluate_gsm8k(
     correct = 0
     for chunk_start in range(0, len(examples), gen_batch_size):
         chunk = examples[chunk_start : chunk_start + gen_batch_size]
-
         max_len = max(p.shape[0] for p, _ in chunk)
         input_ids = torch.full((len(chunk), max_len), pad_id, dtype=torch.long, device=device)
-        attention_mask = torch.zeros((len(chunk), max_len), dtype=torch.long, device=device)
         for i, (prompt, _) in enumerate(chunk):
             L = prompt.shape[0]
             input_ids[i, max_len - L :] = prompt.to(device)
-            attention_mask[i, max_len - L :] = 1
-
         with ctx:
-            generated = model.hf_model.generate(  # type: ignore[reportUnknownMemberType]
-                input_ids=input_ids,
-                attention_mask=attention_mask,
+            generated = model.generate(
+                idx=input_ids,
                 max_new_tokens=max_new_tokens,
-                do_sample=False,
-                eos_token_id=stop_token_ids,
-                pad_token_id=pad_id,
+                temperature=1.0,
+                top_k=1,
+                stop_token_ids=stop_token_ids,
             )
-
         for i, (_, ground_truth) in enumerate(chunk):
             seq = cast(list[int], generated[i, max_len:].tolist())  # type: ignore[reportUnknownMemberType]
-            predicted = extract_answer(tokenizer.decode(seq))
-            if predicted is not None and predicted == ground_truth:
+            stop = len(seq)
+            for j, tok in enumerate(seq):
+                if tok in stop_set:
+                    stop = j
+                    break
+            if extract_answer(tokenizer.decode(seq[:stop])) == ground_truth:
                 correct += 1
-
         logger.info("GSM8K progress: %d/%d", chunk_start + len(chunk), len(examples))
 
     model.train()

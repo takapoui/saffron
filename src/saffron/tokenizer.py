@@ -30,6 +30,10 @@ class Tokenizer(ABC):
     def vocab_size(self) -> int:
         pass
 
+    @property
+    def stop_token_ids(self) -> list[int]:
+        return [self.eot_token]
+
     @staticmethod
     def from_name(name: str, local_files_only: bool = False) -> Tokenizer:
         if "/" in name:
@@ -91,6 +95,12 @@ class HFTokenizer(Tokenizer):
         """Token ID for <|im_end|>, used as turn-end stop token in chat templates."""
         result = self._tok.convert_tokens_to_ids("<|im_end|>")  # pyright: ignore[reportUnknownMemberType]
         return result if isinstance(result, int) else None
+
+    @property
+    def stop_token_ids(self) -> list[int]:
+        if self.im_end_token is not None:
+            return [self.eot_token, self.im_end_token]
+        return [self.eot_token]
 
     def apply_chat_template(
         self,
