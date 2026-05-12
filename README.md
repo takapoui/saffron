@@ -10,6 +10,12 @@ A GPT-2 pretraining framework built from scratch in PyTorch — supporting DDP m
 |---|---|---|---|---|---|---|
 | [001 — Baseline](experiments/001_gpt2_small_baseline.md) | GPT-2 small (124M) | fineweb-edu 10B | 30.4% | 3.07 | 33% | 8x A100 40GB |
 
+### SFT
+
+| Experiment | Model | Dataset | GSM8K | Val Loss | MFU | Hardware |
+|---|---|---|---|---|---|---|
+| [002 — SFT on GSM8K](experiments/002_sft_qwen_gsm8k.md) | Qwen2.5-0.5B base (500M) | GSM8K | 35.9% | 0.49 | 36% | 1x A10 PCIe 24GB |
+
 Full details and training curves in [`experiments/`](experiments/).
 
 ## Setup
