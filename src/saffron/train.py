@@ -95,6 +95,8 @@ class Trainer:
 
     def train(self) -> None:
         self.model.train()
+        _interval_t = 0.0
+        _interval_tokens = 0
         for step in range(self.step, self.train_config.max_steps):
             if step % self.train_config.eval_loss.every == 0:
                 metrics = {"eval_loss": self._eval_loss()}
@@ -173,24 +175,28 @@ class Trainer:
                 torch.mps.synchronize()
             t1 = time.time()
             self.tokens_seen += self.train_config.total_batch_size
-            tok_per_sec = self.train_config.total_batch_size / (t1 - t0)
-            mfu = (
-                6
-                * self._num_model_parameters
-                * tok_per_sec
-                / (self._device_peak_flops * self.run_config.ddp_world_size)
-            )
-            metrics = {
-                "sec": t1 - t0,
-                "norm": norm.item(),
-                "lr": lr,
-                "loss": loss_accum,
-                "tok_per_sec": tok_per_sec,
-                "mfu": mfu,
-                "tokens_seen": self.tokens_seen,
-            }
+            _interval_t += t1 - t0
+            _interval_tokens += self.train_config.total_batch_size
             if step % self.train_config.log_every == 0:
+                tok_per_sec = _interval_tokens / _interval_t
+                mfu = (
+                    6
+                    * self._num_model_parameters
+                    * tok_per_sec
+                    / (self._device_peak_flops * self.run_config.ddp_world_size)
+                )
+                metrics = {
+                    "sec": _interval_t / self.train_config.log_every,
+                    "norm": norm.item(),
+                    "lr": lr,
+                    "loss": loss_accum,
+                    "tok_per_sec": tok_per_sec,
+                    "mfu": mfu,
+                    "tokens_seen": self.tokens_seen,
+                }
                 self._log(step, metrics)
+                _interval_t = 0.0
+                _interval_tokens = 0
 
         last_step = self.train_config.max_steps - 1
         if last_step % self.train_config.eval_loss.every != 0:
