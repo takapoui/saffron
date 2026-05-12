@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from transformers import AutoConfig, AutoModelForCausalLM
 
 from ..constants import LABEL_IGNORE_INDEX
-from ..tokenizer import HFTokenizer, Tokenizer
+from ..tokenizer import HFTokenizer
 from .base_model import BaseModel
 from .config import BaseConfig
 
@@ -42,7 +42,7 @@ class HFModel(BaseModel):
         self.hf_model = AutoModelForCausalLM.from_pretrained(config.hf_model_name)
         self._tokenizer = HFTokenizer(config.hf_model_name)
 
-    def get_tokenizer(self) -> Tokenizer:
+    def get_tokenizer(self) -> HFTokenizer:
         return self._tokenizer
 
     def generate(
@@ -54,15 +54,14 @@ class HFModel(BaseModel):
         stop_token_ids: list[int] | None = None,
     ) -> torch.Tensor:
         # Use HF's built-in generate which supports KV cache
-        eos_token_id = stop_token_ids if stop_token_ids is not None else None
         out = self.hf_model.generate(
             input_ids=idx,
             max_new_tokens=max_new_tokens,
             do_sample=temperature > 0 and top_k > 1,
             temperature=temperature if temperature > 0 and top_k > 1 else None,
             top_k=top_k if top_k > 1 else None,
-            eos_token_id=eos_token_id,
-            pad_token_id=eos_token_id[0] if eos_token_id else None,
+            eos_token_id=stop_token_ids,
+            pad_token_id=stop_token_ids[0] if stop_token_ids else None,
         )
         return out
 

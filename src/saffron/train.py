@@ -12,6 +12,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from .config import RunConfig, TrainConfig
 from .data import BaseDataLoader
+from .data.sft_dataloader import SFTDataLoader
 from .eval import evaluate_generate, evaluate_gsm8k, evaluate_hellaswag
 from .helpers import get_peak_flops
 from .models import BaseModel
@@ -32,9 +33,9 @@ class Trainer:
     ) -> None:
         tokenizer = model.get_tokenizer()
         model = model.to(run_config.device)
-        self.raw_model = model
         if model.supports_compile(run_config.device_type):
             model = cast(BaseModel, torch.compile(model))  # pyright: ignore[reportUnknownMemberType]
+        self.raw_model = model
 
         if run_config.use_ddp:
             self.model = DistributedDataParallel(
@@ -229,7 +230,6 @@ class Trainer:
             cfg = self.train_config.eval_generate
             completions = evaluate_generate(
                 model=self.raw_model,
-                tokenizer=self.tokenizer,
                 device=self.run_config.device,
                 prompt=cfg.prompt,
                 n_samples=cfg.samples,
@@ -255,7 +255,6 @@ class Trainer:
                     self.raw_model,
                     self.run_config.device,
                     self.run_config.device_type,
-                    enc=self.tokenizer,
                 )
             }
 
@@ -264,22 +263,12 @@ class Trainer:
 
     def _eval_gsm8k_task(self, step: int) -> dict[str, float]:
         if self.master_process:
-            from .data.sft_dataloader import SFTDataLoader
-            from .models.hf import HFModel
-            from .tokenizer import HFTokenizer
-
-            if (
-                not isinstance(self.tokenizer, HFTokenizer)
-                or not isinstance(self.val_loader, SFTDataLoader)
-                or not isinstance(self.raw_model, HFModel)
-            ):
-                return {}
             return {
                 "gsm8k_accuracy": evaluate_gsm8k(
                     model=self.raw_model,
-                    tokenizer=self.tokenizer,
-                    val_loader=self.val_loader,
+                    val_loader=cast(SFTDataLoader, self.val_loader),
                     device=self.run_config.device,
+                    device_type=self.run_config.device_type,
                     max_new_tokens=self.train_config.eval_gsm8k.max_tokens,
                     gen_batch_size=self.train_config.eval_gsm8k.gen_batch_size,
                 )
