@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from .eval import EvalGenerateConfig, EvalGSM8KConfig, EvalHellaswagConfig, EvalLossConfig
+from .models.config import GPT2Config as ModelConfig  # backward compat for old checkpoints
+
+__all__ = ["ModelConfig"]  # ensure unpickling finds it
 
 
 @dataclass
@@ -29,6 +32,7 @@ class TrainConfig:
     checkpoint_dir: Path
     checkpoint_every: int
     resume_from: Path | None
+    resume_weights_only: bool  # load weights only, reset step/optimizer (for SFT from pretrain)
 
     # logging
     log_every: int
@@ -50,6 +54,7 @@ class TrainConfig:
             checkpoint_dir=Path(d["checkpoint_dir"]),
             checkpoint_every=d["checkpoint_every"],
             resume_from=Path(d["resume_from"]) if d["resume_from"] is not None else None,
+            resume_weights_only=d.get("resume_weights_only", False),
             log_every=d["log_every"],
             wandb_project=d["wandb_project"],
         )
