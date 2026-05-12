@@ -61,7 +61,9 @@ def test_pretrain_dataloader_wraps_without_bad_shape(
 ) -> None:
     """next_batch() must always return (B, T) tensors, even across shard wraps."""
     root, B, T = pretrain_data_dir
-    cfg = DataConfig(data_root=root, batch_size=B, seq_len=T, tokenizer="gpt2")
+    cfg = DataConfig(
+        data_root=root, batch_size=B, seq_len=T, tokenizer="gpt2", loader_type=LoaderType.PRETRAIN
+    )
     loader = PretrainDataLoader(data_config=cfg, run_config=run_config, split="train")
 
     for _ in range(12):  # >1 full pass over the 50-token shard

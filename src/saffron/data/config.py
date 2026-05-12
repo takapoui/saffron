@@ -30,7 +30,7 @@ class DataConfig:
     batch_size: int
     seq_len: int
     tokenizer: str
-    loader_type: LoaderType = LoaderType.PRETRAIN
+    loader_type: LoaderType
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> DataConfig:
@@ -39,7 +39,7 @@ class DataConfig:
             batch_size=d["batch_size"],
             seq_len=d["seq_len"],
             tokenizer=d["tokenizer"],
-            loader_type=LoaderType(d.get("loader_type", LoaderType.PRETRAIN)),
+            loader_type=LoaderType(d["loader_type"]),
         )
 
 

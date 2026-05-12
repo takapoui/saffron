@@ -22,7 +22,8 @@
             "every": 100,
             "prompt": "Today is a nice day, because",
             "samples": 5,
-            "max_tokens": 50
+            "max_tokens": 50,
+            "use_chat_template": false
         },
         "eval_hellaswag": {
             "every": 1000
@@ -40,7 +41,8 @@
         "data_root": "data/gpt2/HuggingFaceFW_fineweb-edu",
         "batch_size": 32,
         "seq_len": 1024,
-        "tokenizer": "gpt2"
+        "tokenizer": "gpt2",
+        "loader_type": "pretrain"
     },
     "prep": {
         "data_root": "data/gpt2/HuggingFaceFW_fineweb-edu",

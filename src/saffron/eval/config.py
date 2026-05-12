@@ -20,7 +20,7 @@ class EvalGenerateConfig:
     prompt: str
     samples: int
     max_tokens: int
-    use_chat_template: bool = False
+    use_chat_template: bool
     temperature: float = 1.0
     top_k: int = 50
 
@@ -31,7 +31,8 @@ class EvalGenerateConfig:
             prompt=d["prompt"],
             samples=d["samples"],
             max_tokens=d["max_tokens"],
-            **{k: d[k] for k in ("use_chat_template", "temperature", "top_k") if k in d},
+            use_chat_template=d["use_chat_template"],
+            **{k: d[k] for k in ("temperature", "top_k") if k in d},
         )
 
 

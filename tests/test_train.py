@@ -49,7 +49,9 @@ def _train_config(
         grad_clip=1.0,
         total_batch_size=total_batch_size,
         eval_loss=EvalLossConfig(every=eval_loss_every, steps=1),
-        eval_generate=EvalGenerateConfig(every=None, prompt="hi", samples=1, max_tokens=5),
+        eval_generate=EvalGenerateConfig(
+            every=None, prompt="hi", samples=1, max_tokens=5, use_chat_template=False
+        ),
         eval_hellaswag=EvalHellaswagConfig(every=None),
         eval_gsm8k=EvalGSM8KConfig(every=gsm8k_every),
         checkpoint_dir=tmp_path / "ckpt",

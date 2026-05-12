@@ -18,7 +18,8 @@
             "every": 100,
             "prompt": "Today is a nice day, because",
             "samples": 5,
-            "max_tokens": 50
+            "max_tokens": 50,
+            "use_chat_template": false
         },
         "eval_hellaswag": {
             "every": 500
@@ -36,7 +37,8 @@
         "data_root": "data/qwen2.5/HuggingFaceFW_fineweb-edu",
         "batch_size": 4,
         "seq_len": 1024,
-        "tokenizer": "Qwen/Qwen2.5-0.5B"
+        "tokenizer": "Qwen/Qwen2.5-0.5B",
+        "loader_type": "pretrain"
     },
     "prep": {
         "data_root": "data/qwen2.5/HuggingFaceFW_fineweb-edu",
