@@ -11,12 +11,12 @@
         "max_steps": 348,
         "warmup_steps": 50,
         "max_lr": 2e-5,
-        "weight_decay": 0.1,
+        "weight_decay": 0.01,
         "grad_clip": 1.0,
         "total_batch_size": 32768,
         "eval_loss": {
             "every": 25,
-            "steps": 25
+            "steps": 50
         },
         "eval_generate": {
             "every": 50,
@@ -30,7 +30,7 @@
         "eval_gsm8k": {
             "every": 50,
             "max_tokens": 500,
-            "gen_batch_size": 64
+            "gen_batch_size": 128
         },
         "checkpoint_every": 300,
         "checkpoint_dir": "checkpoints/gpt2_small_gsm8k",
@@ -40,7 +40,7 @@
     },
     "data": {
         "data_root": "data/gpt2/gsm8k",
-        "batch_size": 4,
+        "batch_size": 16,
         "seq_len": 512,
         "tokenizer": "gpt2",
         "loader_type": "sft"

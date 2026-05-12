@@ -41,6 +41,7 @@ def evaluate_generate(
         temperature=temperature,
         top_k=top_k,
         stop_token_ids=stop_token_ids,
+        attention_mask=torch.ones_like(idx),
     )
     stop_set = set(stop_token_ids)
     completions: list[str] = []

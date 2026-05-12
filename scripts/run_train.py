@@ -16,6 +16,8 @@ from saffron.models import GPT2, BaseConfig, BaseModel, HFModel
 from saffron.optim import configure_adamw
 from saffron.train import Trainer
 
+torch.set_float32_matmul_precision("high")
+
 MODEL_REGISTRY: dict[str, type[BaseModel]] = {
     "gpt2": GPT2,
     "hf": HFModel,

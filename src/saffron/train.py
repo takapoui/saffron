@@ -85,6 +85,7 @@ class Trainer:
             self.train_loader.advance(checkpoint["step"] * train_config.total_batch_size)
 
         self.tokens_seen = self.step * train_config.total_batch_size
+        self._train_start_time = time.time()
 
         self.use_wandb = self.master_process and train_config.wandb_project is not None
         if self.use_wandb:
@@ -192,7 +193,7 @@ class Trainer:
                     "loss": loss_accum,
                     "tok_per_sec": tok_per_sec,
                     "mfu": mfu,
-                    "tokens_seen": self.tokens_seen,
+                    "elapsed_min": (time.time() - self._train_start_time) / 60,
                 }
                 self._log(step, metrics)
                 _interval_t = 0.0
