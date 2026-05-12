@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 from ..constants import LABEL_IGNORE_INDEX
-from ..tokenizer import HFTokenizer
+from ..tokenizer import Tokenizer
 from ._prep_utils import init_prep
 from .config import SFTPrepConfig
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def format_example(
-    example: dict[str, str], enc: HFTokenizer, system_prompt: str | None
+    example: dict[str, str], enc: Tokenizer, system_prompt: str | None
 ) -> tuple[list[int], int]:
     if system_prompt is None:
         prompt_only = []
@@ -48,7 +48,6 @@ def format_example(
 
 def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
     enc, fw, dtype = init_prep(prep_config)
-    assert isinstance(enc, HFTokenizer)
     split_dir = prep_config.data_root / prep_config.output_split.value
     os.makedirs(split_dir, exist_ok=True)
 

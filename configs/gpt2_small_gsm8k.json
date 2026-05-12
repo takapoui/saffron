@@ -1,0 +1,70 @@
+{
+    "model": {
+        "model_type": "gpt2",
+        "vocab_size": 50257,
+        "n_embd": 768,
+        "block_size": 1024,
+        "n_layer": 12,
+        "n_head": 12
+    },
+    "train": {
+        "max_steps": 348,
+        "warmup_steps": 50,
+        "max_lr": 2e-5,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "total_batch_size": 32768,
+        "eval_loss": {
+            "every": 25,
+            "steps": 25
+        },
+        "eval_generate": {
+            "every": 50,
+            "prompt": "I have 5 boxes with 8 apples each. I eat 3 apples. How many do I have left?",
+            "samples": 3,
+            "max_tokens": 200
+        },
+        "eval_hellaswag": {
+            "every": null
+        },
+        "eval_gsm8k": {
+            "every": 50,
+            "max_tokens": 500,
+            "gen_batch_size": 64
+        },
+        "checkpoint_every": 300,
+        "checkpoint_dir": "checkpoints/gpt2_small_gsm8k",
+        "resume_from": "checkpoints/gpt2_small/ckpt_019000.pt",
+        "log_every": 10,
+        "wandb_project": "saffron"
+    },
+    "data": {
+        "data_root": "data/gpt2/gsm8k",
+        "batch_size": 4,
+        "seq_len": 512,
+        "tokenizer": "gpt2",
+        "loader_type": "sft"
+    },
+    "prep_train": {
+        "data_root": "data/gpt2/gsm8k",
+        "dataset": "gsm8k",
+        "name": "main",
+        "tokenizer": "gpt2",
+        "dataset_split": "train",
+        "examples_per_shard": 500,
+        "max_length": 513,
+        "system_prompt": null,
+        "output_split": "train"
+    },
+    "prep_val": {
+        "data_root": "data/gpt2/gsm8k",
+        "dataset": "gsm8k",
+        "name": "main",
+        "tokenizer": "gpt2",
+        "dataset_split": "test",
+        "examples_per_shard": 500,
+        "max_length": 513,
+        "system_prompt": null,
+        "output_split": "val"
+    }
+}

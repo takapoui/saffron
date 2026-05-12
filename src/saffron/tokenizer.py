@@ -34,6 +34,30 @@ class Tokenizer(ABC):
     def stop_token_ids(self) -> list[int]:
         return [self.eot_token]
 
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        tokenize: bool,
+        add_generation_prompt: bool,
+        return_dict: bool,
+    ) -> list[int]:
+        """Simple role-tagged format for tokenizers without a native chat template."""
+        tokens: list[int] = []
+        for message in messages:
+            role, content = message["role"], message["content"]
+            if role == "system":
+                tokens += self.encode(f"<|system|>\n{content}\n")
+            elif role == "user":
+                tokens += self.encode(f"<|user|>\n{content}\n")
+            elif role == "assistant":
+                tokens += self.encode(f"<|assistant|>\n{content}")
+                tokens += [self.eot_token]
+            else:
+                raise ValueError(f"Unknown role: {role!r}")
+        if add_generation_prompt:
+            tokens += self.encode("<|assistant|>\n")
+        return tokens
+
     @staticmethod
     def from_name(name: str, local_files_only: bool = False) -> Tokenizer:
         if "/" in name:
