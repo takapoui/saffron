@@ -28,13 +28,14 @@
             "every": null
         },
         "eval_gsm8k": {
-            "every": 50,
+            "every": null,
             "max_tokens": 500,
             "gen_batch_size": 128
         },
         "checkpoint_every": 300,
         "checkpoint_dir": "checkpoints/gpt2_small_gsm8k",
         "resume_from": "checkpoints/gpt2_small/ckpt_019000.pt",
+        "resume_weights_only": true,
         "log_every": 10,
         "wandb_project": "saffron"
     },

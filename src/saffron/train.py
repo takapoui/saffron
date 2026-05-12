@@ -76,6 +76,12 @@ class Trainer:
         if resume_from is None:
             self.step = 0
             self.train_loader.reset()
+        elif train_config.resume_weights_only:
+            checkpoint = torch.load(resume_from, weights_only=False, map_location=run_config.device)
+            self.raw_model.load_state_dict(checkpoint["model_dict"])
+            self.step = 0
+            self.train_loader.reset()
+            logger.info("Loaded weights from %s (weights only, step reset to 0).", resume_from)
         else:
             checkpoint = torch.load(resume_from, weights_only=False, map_location=run_config.device)
             self.raw_model.load_state_dict(checkpoint["model_dict"])
