@@ -52,10 +52,12 @@ class HFModel(BaseModel):
         temperature: float = 1,
         top_k: int = 50,
         stop_token_ids: list[int] | None = None,
+        attention_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         # Use HF's built-in generate which supports KV cache
         out = self.hf_model.generate(
             input_ids=idx,
+            attention_mask=attention_mask,
             max_new_tokens=max_new_tokens,
             do_sample=temperature > 0 and top_k > 1,
             temperature=temperature if temperature > 0 and top_k > 1 else None,

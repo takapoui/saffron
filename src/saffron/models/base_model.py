@@ -55,6 +55,7 @@ class BaseModel(nn.Module, ABC):
         temperature: float = 1,
         top_k: int = 50,
         stop_token_ids: list[int] | None = None,
+        attention_mask: torch.Tensor | None = None,  # TODO: native models don't support, HF does
     ) -> torch.Tensor:
         original_device = idx.device
         # MPS has numerical issues with autoregressive generation — run on CPU

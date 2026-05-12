@@ -77,9 +77,11 @@ def evaluate_gsm8k(
         chunk = examples[chunk_start : chunk_start + gen_batch_size]
         max_len = max(p.shape[0] for p, _ in chunk)
         input_ids = torch.full((len(chunk), max_len), pad_id, dtype=torch.long, device=device)
+        attention_mask = torch.zeros((len(chunk), max_len), dtype=torch.long, device=device)
         for i, (prompt, _) in enumerate(chunk):
             L = prompt.shape[0]
             input_ids[i, max_len - L :] = prompt.to(device)
+            attention_mask[i, max_len - L :] = 1
         with ctx:
             generated = model.generate(
                 idx=input_ids,
@@ -87,6 +89,7 @@ def evaluate_gsm8k(
                 temperature=1.0,
                 top_k=1,
                 stop_token_ids=stop_token_ids,
+                attention_mask=attention_mask,
             )
         for i, (_, ground_truth) in enumerate(chunk):
             seq = cast(list[int], generated[i, max_len:].tolist())  # type: ignore[reportUnknownMemberType]
