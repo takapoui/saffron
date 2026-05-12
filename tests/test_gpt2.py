@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from saffron.models import GPT2, GPT2Config
+from saffron.model import GPT2, GPT2Config
 
 
 @pytest.fixture

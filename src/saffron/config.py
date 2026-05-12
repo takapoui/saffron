@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .eval import EvalGenerateConfig, EvalGSM8KConfig, EvalHellaswagConfig, EvalLossConfig
-from .models.config import GPT2Config as ModelConfig  # backward compat for old checkpoints
+from .model.config import GPT2Config as ModelConfig  # backward compat for old checkpoints
 
 __all__ = ["ModelConfig"]  # ensure unpickling finds it
 

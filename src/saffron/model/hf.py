@@ -1,32 +1,14 @@
 # type: ignore  # transformers has no type stubs
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
 import torch
 import torch.nn.functional as F
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM
 
 from ..constants import LABEL_IGNORE_INDEX
 from ..tokenizer import HFTokenizer
 from .base_model import BaseModel
-from .config import BaseConfig
-
-
-@dataclass
-class HFConfig(BaseConfig):
-    hf_model_name: str
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> HFConfig:
-        hf_config = AutoConfig.from_pretrained(d["hf_model_name"])
-        return cls(
-            vocab_size=hf_config.vocab_size,
-            n_embd=hf_config.hidden_size,
-            block_size=hf_config.max_position_embeddings,
-            hf_model_name=d["hf_model_name"],
-        )
+from .config import HFConfig
 
 
 class HFModel(BaseModel):

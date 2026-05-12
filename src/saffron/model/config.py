@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from transformers import AutoConfig  # type: ignore[import-untyped]
+
 if TYPE_CHECKING:
     from typing import Self
 
@@ -33,4 +35,19 @@ class GPT2Config(BaseConfig):
             block_size=d["block_size"],
             n_layer=d["n_layer"],
             n_head=d["n_head"],
+        )
+
+
+@dataclass
+class HFConfig(BaseConfig):
+    hf_model_name: str
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> HFConfig:
+        hf_config = AutoConfig.from_pretrained(d["hf_model_name"])  # type: ignore[reportUnknownMemberType]
+        return cls(
+            vocab_size=int(hf_config.vocab_size),  # type: ignore[reportUnknownMemberType]
+            n_embd=int(hf_config.hidden_size),  # type: ignore[reportUnknownMemberType]
+            block_size=int(hf_config.max_position_embeddings),  # type: ignore[reportUnknownMemberType]
+            hf_model_name=d["hf_model_name"],
         )
