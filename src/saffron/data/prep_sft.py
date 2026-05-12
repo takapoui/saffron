@@ -47,12 +47,14 @@ def format_example(
 
 
 def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
-    enc, fw, dtype = init_prep(prep_config)
+    enc, fw, dtype = init_prep(prep_config, data_files=prep_config.data_files)
     split_dir = prep_config.data_root / prep_config.output_split.value
     os.makedirs(split_dir, exist_ok=True)
 
     shard_examples: list[tuple[list[int], list[int]]] = []  # (tokens, labels) per example
     shard_index = 0
+    token_lengths: list[int] = []
+    skipped = 0
 
     def _write(examples: list[tuple[list[int], list[int]]], idx: int, dtype: str) -> None:
         n = len(examples)
@@ -66,15 +68,18 @@ def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
 
     for example in fw:
         tokens, prompt_len = format_example(example, enc, system_prompt=prep_config.system_prompt)
+        token_lengths.append(len(tokens))
 
         if prompt_len >= prep_config.max_length:
             logger.info("Skip: prompt alone exceeds max_length.")
+            skipped += 1
             continue
 
         labels = [LABEL_IGNORE_INDEX] * prompt_len + tokens[prompt_len:]
 
         if len(tokens) > prep_config.max_length:
             logger.info(f"Skip: example with length {len(tokens)} exceeds max_length.")
+            skipped += 1
             continue
         shard_examples.append((tokens, labels))
 
@@ -86,3 +91,13 @@ def prepare_sft_dataset(prep_config: SFTPrepConfig) -> None:
     # Write the leftover
     if len(shard_examples) > 0:
         _write(shard_examples, shard_index, dtype)
+
+    arr = np.array(token_lengths)
+    logger.info(
+        f"Token lengths over {len(arr)} examples — "
+        f"avg: {arr.mean():.0f} | max: {arr.max()} | "
+        f"p50: {np.percentile(arr, 50):.0f} | p99: {np.percentile(arr, 99):.0f}"
+    )
+    logger.info(
+        f"Skipped {skipped}/{len(arr)} examples for exceeding max_length={prep_config.max_length}"
+    )

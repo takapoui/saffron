@@ -1,4 +1,4 @@
-.PHONY: help setup-linux venv install install-local install-cluster activate-venv kernel lint lint-fix test clean
+.PHONY: help setup-linux venv install install-local install-cluster install-vllm activate-venv kernel lint lint-fix test clean
 
 VENV := .venv
 PYTHON_VERSION := $(shell grep 'requires-python' pyproject.toml | sed 's/[^0-9]*\([0-9][0-9]*\.[0-9][0-9]*\).*/\1/')
@@ -15,6 +15,7 @@ help:
 	@echo "  make venv                 - Create the local .venv if it does not exist"
 	@echo "  make install-local        - Install all dependencies for local development"
 	@echo "  make install-cluster      - Install cluster dependencies using system torch (Lambda Labs)"
+	@echo "  make install-vllm         - Install vllm on top of cluster dependencies (for teacher sampling)"
 	@echo "  make activate-venv        - Print the command to activate .venv"
 	@echo "  make kernel               - Register/update the Jupyter kernel from .venv"
 	@echo "  make lint                 - Run code linters and formatters from .venv"
@@ -46,6 +47,9 @@ install-local: $(PYTHON)
 install-cluster: $(PYTHON)-system
 	$(UV) pip install -r requirements-cluster.txt
 	$(UV) pip install -e .
+
+install-vllm: install-cluster
+	$(UV) pip install vllm
 
 activate-venv: venv
 	@echo "Run this in your shell:"

@@ -30,6 +30,7 @@ make kernel         # registers the Jupyter kernel
 ```bash
 make setup-linux      # installs Python and system deps
 make install-cluster  # uses system torch (Lambda Stack) + installs remaining deps via uv
+make install-vllm     # additionally installs vllm (only needed for teacher sampling)
 ```
 
 ## Data Preparation
@@ -45,6 +46,15 @@ Each config file contains a `prep` section with dataset and tokenization setting
 ```bash
 PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/qwen_0.5b_gsm8k.json --key prep_train
 PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/qwen_0.5b_gsm8k.json --key prep_val
+```
+
+**Teacher sampling (GSM8K):**
+```bash
+# Step 1 — generate teacher answers with round-robin validation
+PYTHONPATH=src .venv/bin/python scripts/sample_teacher.py --config configs/teacher_gsm8k.json --key Qwen2.5-Math-7B-Instruct
+
+# Step 2 — tokenize into npy shards
+PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/teacher_gsm8k.json --key prep_train
 ```
 
 ## Training

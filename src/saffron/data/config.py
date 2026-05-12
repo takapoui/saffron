@@ -83,6 +83,7 @@ class SFTPrepConfig(BasePrepConfig):
     max_length: int
     system_prompt: str | None
     output_split: OutputSplit
+    data_files: str | None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> SFTPrepConfig:
@@ -90,6 +91,7 @@ class SFTPrepConfig(BasePrepConfig):
             **cls._base_kwargs(d),
             examples_per_shard=d["examples_per_shard"],
             max_length=d["max_length"],
-            system_prompt=d.get("system_prompt"),
+            system_prompt=d["system_prompt"],
             output_split=OutputSplit(d["output_split"]),
+            data_files=d["data_files"],
         )

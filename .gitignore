@@ -221,6 +221,7 @@ __marimo__/
 .DS_Store
 
 # directories
+.claude/*
 data/*
 logs/*
 playground/*

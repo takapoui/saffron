@@ -11,6 +11,7 @@ from .config import BasePrepConfig
 
 def init_prep(
     prep_config: BasePrepConfig,
+    data_files: str | None = None,
 ) -> tuple[Tokenizer, Iterable[dict[str, str]], str]:
     enc = Tokenizer.from_name(prep_config.tokenizer)
     fw = cast(
@@ -18,6 +19,7 @@ def init_prep(
         load_dataset(
             prep_config.dataset,
             prep_config.name if prep_config.name else None,
+            data_files=data_files,
             split=prep_config.dataset_split,
         ),
     )
