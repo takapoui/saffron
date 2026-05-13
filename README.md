@@ -15,6 +15,7 @@ A GPT-2 pretraining framework built from scratch in PyTorch — supporting DDP m
 | Experiment | Model | Dataset | GSM8K | Val Loss | MFU | Hardware |
 |---|---|---|---|---|---|---|
 | [002 — SFT on GSM8K](experiments/002_sft_qwen_gsm8k.md) | Qwen2.5-0.5B base (500M) | GSM8K | 35.9% | 0.49 | 36% | 1x A10 PCIe 24GB |
+| [003 — SFT on GSM8K with teacher distillation](experiments/003_sft_qwen_gsm8k_teacher_distilled.md) | Qwen2.5-0.5B base (500M) | GSM8K (Qwen2.5-Math-7B teacher) | 47.7% | 0.71 | 37% | 1x A100 SXM4 40GB |
 
 Full details and training curves in [`experiments/`](experiments/).
 
