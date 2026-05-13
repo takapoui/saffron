@@ -2,6 +2,22 @@
 
 **Commit:** `3b0dbbb`
 
+## Reproduce
+
+```bash
+# Data prep
+PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+    --config configs/sft/qwen_0.5b_gsm8k.json --key prep_train
+PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+    --config configs/sft/qwen_0.5b_gsm8k.json --key prep_val
+
+# Training
+PYTHONPATH=src .venv/bin/python scripts/run_train.py \
+    --config configs/sft/qwen_0.5b_gsm8k.json
+```
+
+*Paths reflect current main. The pinned commit above uses the older flat `configs/*.json` layout.*
+
 ## Goal
 
 Fine-tune Qwen 2.5-0.5B from base pretrained weights on GSM8K and measure how much math reasoning ability SFT can unlock.
