@@ -1,0 +1,71 @@
+{
+    "model": {
+        "model_type": "hf",
+        "hf_model_name": "Qwen/Qwen2.5-1.5B"
+    },
+    "train": {
+        "max_steps": 348,
+        "warmup_steps": 50,
+        "max_lr": 2e-5,
+        "weight_decay": 0.01,
+        "grad_clip": 1.0,
+        "total_batch_size": 32768,
+        "eval_loss": {
+            "every": 25,
+            "steps": 50
+        },
+        "eval_generate": {
+            "every": 50,
+            "prompt": "I have 5 boxes with 8 apples each. I eat 3 apples. How many do I have left?",
+            "samples": 3,
+            "max_tokens": 200,
+            "use_chat_template": true,
+            "temperature": 0.7,
+            "top_k": 50
+        },
+        "eval_hellaswag": {
+            "every": null
+        },
+        "eval_gsm8k": {
+            "every": 50,
+            "max_tokens": 500,
+            "gen_batch_size": 256
+        },
+        "checkpoint_every": 300,
+        "checkpoint_dir": "checkpoints/qwen_1.5b_gsm8k",
+        "resume_from": null,
+        "log_every": 10,
+        "wandb_project": "saffron"
+    },
+    "data": {
+        "data_root": "data/qwen2.5/gsm8k",
+        "batch_size": 8,
+        "seq_len": 512,
+        "tokenizer": "Qwen/Qwen2.5-1.5B",
+        "loader_type": "sft"
+    },
+    "prep_train": {
+        "data_root": "data/qwen2.5/gsm8k",
+        "dataset": "gsm8k",
+        "name": "main",
+        "tokenizer": "Qwen/Qwen2.5-1.5B",
+        "dataset_split": "train",
+        "examples_per_shard": 500,
+        "max_length": 513,
+        "system_prompt": null,
+        "output_split": "train",
+        "data_files": null
+    },
+    "prep_val": {
+        "data_root": "data/qwen2.5/gsm8k",
+        "dataset": "gsm8k",
+        "name": "main",
+        "tokenizer": "Qwen/Qwen2.5-1.5B",
+        "dataset_split": "test",
+        "examples_per_shard": 500,
+        "max_length": 513,
+        "system_prompt": null,
+        "output_split": "val",
+        "data_files": null
+    }
+}
