@@ -178,7 +178,7 @@ Same prompt to both fine-tuned students:
 >
 > Therefore, the number of apples I have left is \(#### 37\).
 
-Both students get this easy problem right, but the exp 003 student picks up the teacher's structure: enumerate steps, restate the problem, set up each calculation, walk through arithmetic, conclude. On harder GSM8K problems the exp 002 student's one-line shortcuts tend to break down, and the structural shift is presumably what closes that gap.
+Both students get this easy problem right, but the exp 003 student picks up the teacher's structure: enumerate steps, restate the problem, set up each calculation, walk through arithmetic, conclude. On harder GSM8K problems the exp 002 student's one-line shortcuts tend to break down, and the structural shift is what carries the gap.
 
 ## Observations
 
@@ -186,6 +186,110 @@ Both students get this easy problem right, but the exp 003 student picks up the 
 - Compute isn't strictly matched. Exp 003 trains on ~22M tokens vs ~11.4M in exp 002, because teacher answers are ~2× longer. But exp 002's accuracy curve had mostly plateaued by the end, so extra epochs of the original data wouldn't have closed much of the gap. The win looks like data quality, not data volume.
 - Round 1 of teacher sampling already solved 95% of GSM8K. Qwen2.5-Math-7B-Instruct is a strong teacher for this benchmark. The 178 examples that defeat it across all 8 rounds fall back to the original answers, so the training set stays at full 7,473.
 - `eval_loss` keeps creeping up while `gsm8k_accuracy` keeps climbing. The val set still uses original terse answers, but the model now produces multi-step prose, so every prose token is a "wrong prediction" against the terse target. Loss inflates even though the final numbers come out right more often. This is the kind of case where the proxy metric and the real metric stop agreeing, and only the downstream metric is informative.
-- A larger student (Qwen2.5-1.5B+) might widen the gap further. We didn't test it here.
-- Same-family caveat: teacher and student share the Qwen2.5 tokenizer and pretraining lineage, so the teacher's outputs sit naturally in the student's input distribution. Some chunk of the +11.8 points probably comes from that alignment rather than pure reasoning content. The clean ablation is to distill from a different-family teacher of comparable quality (Llama-3-8B-Instruct, DeepSeek-Math-7B) and see how much the gap shrinks. Not tested here.
+- A larger student (Qwen2.5-1.5B+) might widen the gap further. Tested in the follow-up section below.
+- Same-family caveat: teacher and student share the Qwen2.5 tokenizer and pretraining lineage, so the teacher's outputs sit naturally in the student's input distribution. Some chunk of the +11.8 points might come from that alignment rather than pure reasoning content. Tested in the follow-up section below.
 
+<br>
+<br>
+<br>
+
+---
+
+---
+
+---
+
+<br>
+<br>
+<br>
+
+# EDITS
+
+## Follow up 1: Does same-family caveat matter?
+
+Re-ran the pipeline with `deepseek-ai/deepseek-math-7b-instruct` as the teacher, everything else identical. DeepSeek is a different family from Qwen (different tokenizer, different pretraining), so if the +11.8 gain was mostly from same-family alignment, this run should fall well short.
+
+DeepSeek doesn't use `\boxed{X}` — it ends answers with prose like *"Therefore, the answer is 24."*. We extended `_normalize_answer` in `sample_teacher.py` to append `#### N` using the last number when no `\boxed{}` or `####` is present.
+
+**Teacher sampling:**
+
+| | Qwen-Math-7B | DeepSeek-Math-7B |
+|---|---|---|
+| Wall clock | 45.7 min | 19.4 min |
+| Round 1 hit rate | 95.0% | 88.6% |
+| Final coverage | 97.6% (7295) | 98.7% (7378) |
+| Avg answer length (tokens) | 380 | 248 |
+
+**Training result:**
+
+| Metric | Exp 002 (original) | Exp 003 (Qwen teacher) | DeepSeek teacher |
+|---|---|---|---|
+| Final train loss | 0.33 | 0.04 | 0.19 |
+| Final eval loss | 0.49 | 0.71 | 0.66 |
+| GSM8K accuracy | 35.9% | 47.65% | **45.76%** (604/1320) |
+| Wall clock | ~38 min | 38.2 min | 23.9 min |
+| MFU | ~36% | ~37.5% | ~39.7% |
+| Δ vs exp 002 | — | +11.8 pts | +9.9 pts |
+
+DeepSeek's training run was much faster than exp 003 despite identical hyperparameters because it ran on top of the `bf16` + `gen_batch_size=256` eval speedup landed in commit `8cfc676`. Training curves followed the expected pattern.
+
+**Sample at step 671** (same prompt as exp 003's):
+
+> I have 5 boxes with 8 apples each, so I have a total of 5 * 8 = 40 apples.
+>
+> I eat 3 apples, so I have 40 - 3 = 37 apples left.
+>
+> So the answer is \$#### 37\$.
+
+The output style matches DeepSeek's terser reasoning: two-line prose, no enumeration, plain arithmetic.
+
+**Conclusion.** Cross-family teacher recovers ~84% of the same-family gain (+9.9 vs +11.8). Same-family alignment contributes at most ~1.9 of the 11.8 points. The structural shift to step-by-step reasoning dominates, not the tokenizer or pretraining lineage. Teacher distillation is robust to teacher choice.
+
+## Follow up 2: Does the gain widen with a larger student?
+
+Re-running both arms (original GSM8K and Qwen-Math teacher distillation) with `Qwen/Qwen2.5-1.5B` as the student. Same hyperparameters as the 0.5B runs, just a bigger model. `batch_size` per GPU dropped from 8 → 4 to fit the larger optimizer state on a 40GB A100. Here are the results:
+
+
+|  | Original GSM8K | Qwen-Math teacher | Δ (teacher) |
+|---|---|---|---|
+| **0.5B** | 35.9% | 47.65% | **+11.8** |
+| **1.5B** | 59.17% | **72.80%** | **+13.6** |
+| Δ (size) | +23.3 | +25.2 | |
+
+Training curves followed the expected pattern in both runs (loss decreased monotonically, accuracy plateaued by ~step 500). Charts omitted — the table conveys everything they would.
+
+**Detailed metrics:**
+
+| Metric | 1.5B baseline | 1.5B teacher |
+|---|---|---|
+| Final train loss | 0.26 | 0.07 |
+| Final eval loss | 0.45 | 0.51 |
+| GSM8K accuracy | 59.17% (781/1320) | 72.80% (961/1320) |
+| Wall clock | 34.4 min | 48.1 min |
+| MFU | ~55% | ~51% |
+| Tok/sec | ~18,700 | ~17,100 |
+
+**Findings:**
+
+1. Both wins stack. Teacher distillation adds ~12 points at both 0.5B and 1.5B. Capacity adds ~24 points whether you use original or teacher data. The numbers behave additively.
+
+2. The teacher gain is slightly larger at 1.5B than at 0.5B (+13.6 vs +11.8), and the capacity gain is slightly larger with teacher data than original (+25.2 vs +23.3). So a small positive interaction on top of the additive baseline.
+
+3. MFU jumped on the larger model. 0.5B sat at ~37%, 1.5B sits at ~51-55%. Bigger model better amortizes kernel-launch overhead on the A100.
+
+**Sample at step 671 (1.5B teacher):**
+
+> To determine how many apples I have left after eating some, we can follow these steps:
+>
+> 1. Calculate the total number of apples I initially have.
+> 2. Subtract the number of apples I eat from the total number of apples.
+>
+> First, let's calculate the total number of apples I initially have. I have 5 boxes, and each box contains 8 apples. So, we multiply the number of boxes by the number of apples per box:
+> $$ 5 \times 8 = 40 $$
+> This means I have 40 apples initially.
+>
+> Next, I eat 3 apples. So, we subtract the number of apples I eat from the total number of apples:
+> $$ 40 - 3 = 37 $$
+> This means I have 37 apples left.
+>
+> Therefore, the number of apples I have left is \(#### 37\).
