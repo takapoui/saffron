@@ -1,0 +1,45 @@
+{
+    "deepseek-math-7b-instruct": {
+        "teacher": {
+            "model_name": "deepseek-ai/deepseek-math-7b-instruct",
+            "max_tokens": 2048,
+            "temperature": 0.7,
+            "dtype": "bfloat16",
+            "system_prompt": "You are a math tutor. Solve the problem step by step, showing your full reasoning."
+        },
+        "dataset": {
+            "name": "gsm8k",
+            "subset": "main",
+            "split": "train",
+            "question_field": "question",
+            "answer_field": "answer"
+        },
+        "output_path": "data/teacher/gsm8k_deepseek_math_7b.jsonl",
+        "batch_size": 64,
+        "max_rounds": 8
+    },
+    "prep_train": {
+        "data_root": "data/qwen2.5/gsm8k_teacher_deepseek",
+        "dataset": "json",
+        "name": "",
+        "tokenizer": "Qwen/Qwen2.5-0.5B",
+        "dataset_split": "train",
+        "examples_per_shard": 500,
+        "max_length": 1025,
+        "system_prompt": null,
+        "output_split": "train",
+        "data_files": "data/teacher/gsm8k_deepseek_math_7b.jsonl"
+    },
+    "prep_val": {
+        "data_root": "data/qwen2.5/gsm8k_teacher_deepseek",
+        "dataset": "gsm8k",
+        "name": "main",
+        "tokenizer": "Qwen/Qwen2.5-0.5B",
+        "dataset_split": "test",
+        "examples_per_shard": 500,
+        "max_length": 1025,
+        "system_prompt": null,
+        "output_split": "val",
+        "data_files": null
+    }
+}
