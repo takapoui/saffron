@@ -208,6 +208,25 @@ class Trainer:
         last_step = self.train_config.max_steps - 1
         if last_step % self.train_config.eval_loss.every != 0:
             self._log(last_step, {"eval_loss": self._eval_loss()})
+        if (
+            self.train_config.eval_generate.every is not None
+            and last_step % self.train_config.eval_generate.every != 0
+        ):
+            self._eval_generate_task(step=last_step)
+        if (
+            self.train_config.eval_hellaswag.every is not None
+            and last_step % self.train_config.eval_hellaswag.every != 0
+        ):
+            metrics = self._eval_hellaswag_task(step=last_step)
+            if metrics:
+                self._log(last_step, metrics)
+        if (
+            self.train_config.eval_gsm8k.every is not None
+            and last_step % self.train_config.eval_gsm8k.every != 0
+        ):
+            metrics = self._eval_gsm8k_task(step=last_step)
+            if metrics:
+                self._log(last_step, metrics)
         if self.master_process and last_step % self.train_config.checkpoint_every != 0:
             self._save_checkpoint(last_step)
 
