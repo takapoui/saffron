@@ -21,7 +21,11 @@ class HFModel(BaseModel):
     def __init__(self, config: HFConfig) -> None:
         super().__init__()
         self.config = config
-        self.hf_model = AutoModelForCausalLM.from_pretrained(config.hf_model_name)
+        self.hf_model = AutoModelForCausalLM.from_pretrained(
+            config.hf_model_name,
+            torch_dtype=torch.bfloat16,
+            attn_implementation="sdpa",
+        )
         self._tokenizer = HFTokenizer(config.hf_model_name)
 
     def get_tokenizer(self) -> HFTokenizer:
