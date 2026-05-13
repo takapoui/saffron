@@ -14,12 +14,24 @@ from saffron.model.vllm_teacher import VLLMTeacher, VLLMTeacherConfig
 logger = logging.getLogger(__name__)
 
 _BOXED_RE = re.compile(r"\\boxed\{([\d,.-]+)\}")
+_NUMBER_RE = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 
 
 def _normalize_answer(text: str) -> str:
-    # Rewrite \\boxed{X} → #### X so the output matches GSM8K format.
-    # The teacher model did not respect the prompt formatting request.
-    return _BOXED_RE.sub(lambda m: f"#### {m.group(1)}", text)
+    # Ensure the answer ends with a `#### N` marker so it matches GSM8K format
+    # and the student learns to produce it. Teacher models don't always respect
+    # the prompt formatting, so we handle three cases:
+    #   1. Already has `####` — leave alone
+    #   2. Has `\boxed{X}` — rewrite as `#### X`
+    #   3. Neither — append `#### N` using the last number in the text
+    if "####" in text:
+        return text
+    if _BOXED_RE.search(text):
+        return _BOXED_RE.sub(lambda m: f"#### {m.group(1)}", text)
+    numbers = _NUMBER_RE.findall(text)
+    if numbers:
+        return text.rstrip() + f"\n#### {numbers[-1]}"
+    return text
 
 
 def main(
@@ -61,9 +73,6 @@ def main(
             for (idx, ex), answer in zip(batch, answers, strict=True):
                 gt = extract_answer(ex[answer_field])
                 pred = extract_answer(answer)
-                logger.info(
-                    f"real: {gt} | tried: {pred} | len: {len(answer)} vs {len(ex[answer_field])}"
-                )
                 if gt is not None and pred == gt:
                     answered[idx] = answer
                     batch_correct += 1
