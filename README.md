@@ -1,6 +1,8 @@
 # saffron
 
-A GPT-2 pretraining framework built from scratch in PyTorch — supporting DDP multi-GPU training, `torch.compile`, MFU tracking, and wandb logging.
+A PyTorch codebase for studying small-scale language models end-to-end: pretraining, fine-tuning, and post-training. The goal is to take a model far enough that it does something tangible, like simple math, while keeping every stage of the stack visible and modifiable: architecture (GPT-2 from scratch, HuggingFace adapters for larger models), training loop (DDP, `torch.compile`, mixed-precision, MFU tracking, wandb logging), evaluation (loss, Hellaswag, GSM8K, generation samples), data pipelines, teacher distillation (vLLM with rejection sampling), and (eventually) reward design. Minimal and explicit by design; external dependencies are used when they're not the part being studied.
+
+The experiments below track the project's progress. Built as a personal learning project, where each experiment is a way to understand a piece of the stack in depth. The codebase is kept readable enough that someone else could follow along. Cluster experiments run on [Lambda Labs](https://lambda.ai/) GPUs.
 
 ## Experiments & Results
 
@@ -8,7 +10,7 @@ A GPT-2 pretraining framework built from scratch in PyTorch — supporting DDP m
 
 | Experiment | Model | Dataset | Hellaswag | Val Loss | MFU | Hardware |
 |---|---|---|---|---|---|---|
-| [001 — Baseline](experiments/001_gpt2_small_baseline.md) | GPT-2 small (124M) | fineweb-edu 10B | 30.4% | 3.07 | 33% | 8x A100 40GB |
+| [001 — Baseline](experiments/001_gpt2_small_baseline.md) | GPT-2 small (124M) | fineweb-edu 10B | 30.4% | 3.07 | 33% | 8x A100 SXM4 40GB |
 
 ### SFT
 
@@ -16,11 +18,16 @@ A GPT-2 pretraining framework built from scratch in PyTorch — supporting DDP m
 |---|---|---|---|---|---|
 | [002 — SFT on GSM8K](experiments/002_sft_qwen_gsm8k.md) | Qwen2.5-0.5B base (500M) | GSM8K | 35.9% | 36% | 1x A10 PCIe 24GB |
 | [003 — SFT on GSM8K with teacher distillation](experiments/003_sft_qwen_gsm8k_teacher_distilled.md) | Qwen2.5-0.5B base (500M) | GSM8K (Qwen2.5-Math-7B teacher) | 47.7% | 37% | 1x A100 SXM4 40GB |
-| [003 — SFT on GSM8K with teacher distillation](experiments/003_sft_qwen_gsm8k_teacher_distilled.md) | Qwen2.5-1.5B base (1.5B) | GSM8K (Qwen2.5-Math-7B teacher) | **72.8%** | 51% | 1x A100 SXM4 40GB |
+| [^ Same](experiments/003_sft_qwen_gsm8k_teacher_distilled.md) | Qwen2.5-1.5B base (1.5B) | GSM8K (Qwen2.5-Math-7B teacher) | **72.8%** | 51% | 1x A100 SXM4 40GB |
 
 Full details and training curves in [`experiments/`](experiments/).
 
 ## Setup
+
+```bash
+git clone https://github.com/takapoui/saffron.git
+cd saffron
+```
 
 **Local:**
 ```bash
@@ -81,3 +88,9 @@ PYTHONPATH=src .venv/bin/python scripts/run_train.py --config configs/qwen_0.5b_
 make lint         # run ruff and pyright
 make test         # run pytest
 ```
+
+## Credits
+
+[nanoGPT](https://github.com/karpathy/nanoGPT) / [nanochat](https://github.com/karpathy/nanochat): Karpathy's minimalism philosophy and self-contained GPT-2 implementation shaped saffron's style. The peak-FLOPs tables are borrowed from nanochat.
+
+Claude (Anthropic): helped with cumbersome work like writing tests, boilerplate, and some refactors.

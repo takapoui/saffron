@@ -35,10 +35,12 @@ Validate the training infrastructure end-to-end and establish a baseline to comp
 
 ## Results
 
-| Metric | This run | Reference (nanoGPT) | Note |
-|---|---|---|---|
-| Val loss | 3.07 | 3.28 | Not comparable — different datasets |
-| Hellaswag | 30.4% | 29.55% | Keeps improving with more training |
+| Metric | This run | Reference (nanoGPT) |
+|---|---|---|
+| Val loss | 3.07 | 3.28 (different dataset, not directly comparable) |
+| Hellaswag | 30.4% | 29.55% |
+
+Hellaswag still trending up at end of run, but stopped here.
 
 ## Charts
 
@@ -46,9 +48,10 @@ Validate the training infrastructure end-to-end and establish a baseline to comp
 
 ## Observations
 
-- MFU of 33% is lower than the ~50% reference. Expected — GPT-2 small is memory bandwidth bound on A100s, which are optimized for larger models.
+- MFU of 33% is lower than the ~50% reference. Expected: GPT-2 small is small enough that it can't keep the A100's compute units saturated, so per-step time is dominated by memory bandwidth and kernel launch overhead rather than matmul throughput.
 - `torch.compile` added ~3-5% MFU improvement.
 - Hellaswag at 30.4% beats the 29.55% reference, likely due to the higher quality fineweb-edu dataset vs WebText.
 - Loss and eval_loss decreased cleanly with no instabilities. Final training loss 2.99, eval loss 3.07.
-- This run used a pip-installed torch rather than Lambda's system torch. Lambda's cuDNN lives in a non-standard path that only their torch build knows about, so installing your own torch may bypass optimized cuDNN kernels. Future runs will use system torch via `make install-cluster`, which could improve MFU by a few percent.
+- This run used a pip-installed torch rather than Lambda's system torch. Lambda's cuDNN lives in a non-standard path that only their torch build knows about, so installing your own torch can bypass optimized cuDNN kernels. Subsequent runs use system torch via `make install-cluster`.
+- Configuration and training recipe directly inspired by [nanoGPT](https://github.com/karpathy/nanoGPT)'s GPT-2 reproducer.
 

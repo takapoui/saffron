@@ -239,7 +239,7 @@ DeepSeek's training run was much faster than exp 003 despite identical hyperpara
 >
 > I eat 3 apples, so I have 40 - 3 = 37 apples left.
 >
-> So the answer is \$#### 37\$.
+> So the answer is `$#### 37$`.
 
 The output style matches DeepSeek's terser reasoning: two-line prose, no enumeration, plain arithmetic.
 

@@ -71,7 +71,7 @@ We also ran the same SFT procedure on our GPT-2 small from experiment 001. This 
 
 GSM8K eval was disabled for this run. The generate samples made it clear accuracy would be near 0, so running a full eval (each pass takes ~29 minutes without a KV cache in the native GPT-2 generator) wasn't worth it.
 
-Despite the loss dropping from 3.0 to ~1.0, generation samples show the model learning GSM8K stylistic conventions (inline calculator notation `<<2*2=4>>`) but failing to produce coherent arithmetic or reach the `####` answer format. Accuracy is expected to be near zero. SFT can transfer output style but not mathematical reasoning to a model without the prerequisite knowledge from pretraining.
+Despite the loss dropping from 3.0 to ~1.0, generation samples show the model learning GSM8K stylistic conventions (inline calculator notation `<<2*2=4>>`) but failing to produce coherent arithmetic or reach the `####` answer format. Accuracy is expected to be near zero. In this run, SFT transferred the output style but didn't teach the model math reasoning the pretrained base lacked.
 
 **Step 0** — pure pretrained language model, no math:
 > There's lots of stuff I can buy. I'm in the business. I'm not used to it. I'm just afraid to look at it and have fun and take it one step further.
