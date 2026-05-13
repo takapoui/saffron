@@ -1,11 +1,11 @@
 import argparse
 import json
-import logging
 
 from saffron.data import SFTPrepConfig, prepare_sft_dataset
+from saffron.helpers import setup_file_logging
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    setup_file_logging("prep_sft")
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--key", type=str, default="prep")

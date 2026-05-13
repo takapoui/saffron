@@ -1,6 +1,23 @@
 import logging
+from datetime import datetime
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 import torch
+
+
+def setup_file_logging(prefix: str) -> None:
+    """Log to both stdout and logs/{prefix}_{timestamp}.log."""
+    Path("logs").mkdir(exist_ok=True)
+    log_file = f"logs/{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        handlers=[
+            logging.StreamHandler(),
+            RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=5),
+        ],
+    )
 
 
 def get_default_device() -> str:
