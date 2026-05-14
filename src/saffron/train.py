@@ -169,8 +169,8 @@ class Trainer:
             lr = get_lr_cosine(
                 step=step,
                 max_steps=self.train_config.max_steps,
-                max_lr=self.train_config.max_lr,
-                warmup_steps=self.train_config.warmup_steps,
+                max_lr=self.train_config.optimizer.lr,
+                config=self.train_config.schedule,
             )
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr
@@ -259,16 +259,10 @@ class Trainer:
 
     def _eval_generate_task(self, step: int) -> None:
         if self.master_process:
-            cfg = self.train_config.eval_generate
             completions = evaluate_generate(
                 model=self.raw_model,
                 device=self.run_config.device,
-                prompt=cfg.prompt,
-                n_samples=cfg.samples,
-                max_new_tokens=cfg.max_tokens,
-                use_chat_template=cfg.use_chat_template,
-                temperature=cfg.temperature,
-                top_k=cfg.top_k,
+                config=self.train_config.eval_generate,
             )
             for sample in completions:
                 logger.info(f"Step {step} sample: {sample}")
@@ -301,8 +295,7 @@ class Trainer:
                     val_loader=cast(SFTDataLoader, self.val_loader),
                     device=self.run_config.device,
                     device_type=self.run_config.device_type,
-                    max_new_tokens=self.train_config.eval_gsm8k.max_tokens,
-                    gen_batch_size=self.train_config.eval_gsm8k.gen_batch_size,
+                    config=self.train_config.eval_gsm8k,
                 )
             }
         return {}

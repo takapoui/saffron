@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import torch
 
+from saffron.eval.config import EvalGenerateConfig
 from saffron.eval.generate import evaluate_generate
 from saffron.tokenizer import HFTokenizer
 
@@ -52,10 +53,13 @@ def test_evaluate_generate_stops_at_first_stop_token() -> None:
     completions = evaluate_generate(
         model=_SeqModel(),  # type: ignore[arg-type]
         device="cpu",
-        prompt="hi",
-        n_samples=1,
-        max_new_tokens=3,
-        use_chat_template=False,
+        config=EvalGenerateConfig(
+            every=None,
+            prompt="hi",
+            samples=1,
+            max_tokens=3,
+            use_chat_template=False,
+        ),
     )
 
     assert len(completions) == 1
@@ -132,10 +136,13 @@ def test_evaluate_generate_chat_template_path() -> None:
     evaluate_generate(
         model=_ChatModel(),  # type: ignore[arg-type]
         device="cpu",
-        prompt="What is 2+2?",
-        n_samples=1,
-        max_new_tokens=1,
-        use_chat_template=True,
+        config=EvalGenerateConfig(
+            every=None,
+            prompt="What is 2+2?",
+            samples=1,
+            max_tokens=1,
+            use_chat_template=True,
+        ),
     )
 
     assert len(tok.apply_calls) == 1

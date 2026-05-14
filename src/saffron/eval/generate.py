@@ -6,40 +6,36 @@ import torch
 
 from ..model import BaseModel
 from ..tokenizer import HFTokenizer
+from .config import EvalGenerateConfig
 
 
 @torch.no_grad()
 def evaluate_generate(
     model: BaseModel,
     device: str,
-    prompt: str,
-    n_samples: int = 5,
-    max_new_tokens: int = 50,
-    use_chat_template: bool = False,
-    temperature: float = 1.0,
-    top_k: int = 50,
+    config: EvalGenerateConfig,
 ) -> list[str]:
     model.eval()
     tokenizer = model.get_tokenizer()
-    if use_chat_template:
+    if config.use_chat_template:
         assert isinstance(tokenizer, HFTokenizer), "use_chat_template requires HFTokenizer"
         prompt_ids = tokenizer.apply_chat_template(
-            [{"role": "user", "content": prompt}],
+            [{"role": "user", "content": config.prompt}],
             tokenize=True,
             add_generation_prompt=True,
             return_dict=False,
         )
     else:
-        prompt_ids = tokenizer.encode(prompt)
+        prompt_ids = tokenizer.encode(config.prompt)
     idx = torch.tensor(prompt_ids, dtype=torch.long)
     prompt_len = idx.shape[0]
-    idx = idx.unsqueeze(0).repeat(n_samples, 1).to(device)
+    idx = idx.unsqueeze(0).repeat(config.samples, 1).to(device)
     stop_token_ids = tokenizer.stop_token_ids
     tokens = model.generate(
         idx=idx,
-        max_new_tokens=max_new_tokens,
-        temperature=temperature,
-        top_k=top_k,
+        max_new_tokens=config.max_tokens,
+        temperature=config.temperature,
+        top_k=config.top_k,
         stop_token_ids=stop_token_ids,
         attention_mask=torch.ones_like(idx),
     )

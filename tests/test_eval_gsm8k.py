@@ -6,6 +6,7 @@ import pytest
 import torch
 
 from saffron.constants import LABEL_IGNORE_INDEX
+from saffron.eval.config import EvalGSM8KConfig
 from saffron.eval.gsm8k import evaluate_gsm8k, extract_answer
 
 # ---------------------------------------------------------------------------
@@ -156,8 +157,7 @@ def test_evaluate_gsm8k_scores_controlled_examples() -> None:
         val_loader=_FakeValLoader(x, y),  # type: ignore[arg-type]
         device="cpu",
         device_type="cpu",
-        max_new_tokens=5,
-        gen_batch_size=8,
+        config=EvalGSM8KConfig(every=None, max_tokens=5, gen_batch_size=8),
     )
     assert acc == pytest.approx(0.5)  # type: ignore[reportUnknownMemberType]
 
@@ -185,8 +185,7 @@ def test_evaluate_gsm8k_ignores_examples_without_parseable_answer() -> None:
         val_loader=_FakeValLoader(x, y),  # type: ignore[arg-type]
         device="cpu",
         device_type="cpu",
-        max_new_tokens=5,
-        gen_batch_size=8,
+        config=EvalGSM8KConfig(every=None, max_tokens=5, gen_batch_size=8),
     )
     assert acc == pytest.approx(1.0)  # type: ignore[reportUnknownMemberType]
 
@@ -233,8 +232,7 @@ def test_evaluate_gsm8k_uses_attention_mask_for_padded_batches() -> None:
         val_loader=_FakeValLoader(x, y),  # type: ignore[arg-type]
         device="cpu",
         device_type="cpu",
-        max_new_tokens=3,
-        gen_batch_size=8,
+        config=EvalGSM8KConfig(every=None, max_tokens=3, gen_batch_size=8),
     )
 
     mask = captured["attention_mask"]

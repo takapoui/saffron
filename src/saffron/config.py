@@ -11,16 +11,35 @@ __all__ = ["ModelConfig"]  # ensure unpickling finds it
 
 
 @dataclass
-class TrainConfig:
-    # optimization
-    max_steps: int
-    warmup_steps: int
-    max_lr: float
+class OptimizerConfig:
+    lr: float
     weight_decay: float
-    grad_clip: float
 
-    # data
-    total_batch_size: int  # 524288 if cuda else 16384
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> OptimizerConfig:
+        return cls(lr=d["lr"], weight_decay=d["weight_decay"])
+
+
+@dataclass
+class ScheduleConfig:
+    warmup_steps: int
+    min_lr_ratio: float
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> ScheduleConfig:
+        return cls(warmup_steps=d["warmup_steps"], min_lr_ratio=d["min_lr_ratio"])
+
+
+@dataclass
+class TrainConfig:
+    # training loop
+    max_steps: int
+    grad_clip: float
+    total_batch_size: int
+
+    # optimizer + schedule
+    optimizer: OptimizerConfig
+    schedule: ScheduleConfig
 
     # eval
     eval_loss: EvalLossConfig
@@ -42,11 +61,10 @@ class TrainConfig:
     def from_dict(cls, d: dict[str, Any]) -> TrainConfig:
         return cls(
             max_steps=d["max_steps"],
-            warmup_steps=d["warmup_steps"],
-            max_lr=d["max_lr"],
-            weight_decay=d["weight_decay"],
             grad_clip=d["grad_clip"],
             total_batch_size=d["total_batch_size"],
+            optimizer=OptimizerConfig.from_dict(d["optimizer"]),
+            schedule=ScheduleConfig.from_dict(d["schedule"]),
             eval_loss=EvalLossConfig.from_dict(d["eval_loss"]),
             eval_generate=EvalGenerateConfig.from_dict(d["eval_generate"]),
             eval_hellaswag=EvalHellaswagConfig.from_dict(d["eval_hellaswag"]),

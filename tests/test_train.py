@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 
-from saffron.config import RunConfig, TrainConfig
+from saffron.config import OptimizerConfig, RunConfig, ScheduleConfig, TrainConfig
 from saffron.eval import EvalGenerateConfig, EvalGSM8KConfig, EvalHellaswagConfig, EvalLossConfig
 from saffron.model import GPT2, GPT2Config
 from saffron.train import Trainer
@@ -43,9 +43,8 @@ def _train_config(
 ) -> TrainConfig:
     return TrainConfig(
         max_steps=max_steps,
-        warmup_steps=1,
-        max_lr=1e-4,
-        weight_decay=0.01,
+        optimizer=OptimizerConfig(lr=1e-4, weight_decay=0.01),
+        schedule=ScheduleConfig(warmup_steps=1, min_lr_ratio=0.1),
         grad_clip=1.0,
         total_batch_size=total_batch_size,
         eval_loss=EvalLossConfig(every=eval_loss_every, steps=1),

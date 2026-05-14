@@ -9,9 +9,6 @@
     },
     "train": {
         "max_steps": 1000,
-        "warmup_steps": 100,
-        "max_lr": 6e-4,
-        "weight_decay": 0.1,
         "grad_clip": 1.0,
         "total_batch_size": 8192,
         "eval_loss": {
@@ -35,7 +32,15 @@
         "checkpoint_dir": "checkpoints/gpt2_small_mps",
         "resume_from": null,
         "log_every": 1,
-        "wandb_project": null
+        "wandb_project": null,
+        "optimizer": {
+            "lr": 6e-4,
+            "weight_decay": 0.1
+        },
+        "schedule": {
+            "warmup_steps": 100,
+            "min_lr_ratio": 0.1
+        }
     },
     "data": {
         "data_root": "data/gpt2/roneneldan_TinyStories",

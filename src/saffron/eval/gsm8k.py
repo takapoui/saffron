@@ -9,6 +9,7 @@ import torch
 
 from ..constants import LABEL_IGNORE_INDEX
 from ..model.base_model import BaseModel
+from .config import EvalGSM8KConfig
 
 if TYPE_CHECKING:
     from ..data.sft_dataloader import SFTDataLoader
@@ -34,8 +35,7 @@ def evaluate_gsm8k(
     val_loader: SFTDataLoader,
     device: str,
     device_type: str,
-    max_new_tokens: int,
-    gen_batch_size: int,
+    config: EvalGSM8KConfig,
 ) -> float:
     model.eval()
     tokenizer = model.get_tokenizer()
@@ -73,8 +73,8 @@ def evaluate_gsm8k(
         else contextlib.nullcontext()
     )
     correct = 0
-    for chunk_start in range(0, len(examples), gen_batch_size):
-        chunk = examples[chunk_start : chunk_start + gen_batch_size]
+    for chunk_start in range(0, len(examples), config.gen_batch_size):
+        chunk = examples[chunk_start : chunk_start + config.gen_batch_size]
         max_len = max(p.shape[0] for p, _ in chunk)
         input_ids = torch.full((len(chunk), max_len), pad_id, dtype=torch.long, device=device)
         attention_mask = torch.zeros((len(chunk), max_len), dtype=torch.long, device=device)
@@ -85,7 +85,7 @@ def evaluate_gsm8k(
         with ctx:
             generated = model.generate(
                 idx=input_ids,
-                max_new_tokens=max_new_tokens,
+                max_new_tokens=config.max_tokens,
                 temperature=1.0,
                 top_k=1,
                 stop_token_ids=stop_token_ids,

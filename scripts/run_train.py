@@ -69,8 +69,7 @@ def main(
     )
     optimizer = configure_adamw(
         model=model,
-        weight_decay=train_config.weight_decay,
-        learning_rate=train_config.max_lr,
+        config=train_config.optimizer,
         device_type=run_config.device_type,
     )
     trainer = Trainer(
