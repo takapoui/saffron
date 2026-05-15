@@ -9,8 +9,8 @@ from typing import Any
 import numpy as np
 from datasets import load_dataset  # type: ignore[reportUnknownVariableType]
 
-from ..tokenizer import Tokenizer
-from .config import RLPrepConfig
+from ...tokenizer import Tokenizer
+from ..config import RLPrepConfig
 
 logger = logging.getLogger(__name__)
 

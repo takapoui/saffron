@@ -8,10 +8,10 @@ from .config import (
     SFTPrepConfig,
 )
 from .prep_pretrain import load_and_tokenize_dataset
-from .prep_rl import prepare_rl_dataset
 from .prep_sft import prepare_sft_dataset
 from .pretrain_dataloader import PretrainDataLoader
-from .rl_dataloader import RLDataLoader
+from .rl.prep_rl import prepare_rl_dataset
+from .rl.rl_dataloader import RLDataLoader
 from .sft_dataloader import SFTDataLoader
 
 __all__ = [
