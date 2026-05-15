@@ -103,6 +103,7 @@ def test_base_model_generate_stops_finished_rows_only(config: GPT2Config) -> Non
             self,
             idx: torch.Tensor,
             target: torch.Tensor | None = None,
+            attention_mask: torch.Tensor | None = None,
         ) -> tuple[torch.Tensor, torch.Tensor | None]:
             B, T = idx.shape
             logits = torch.zeros(B, T, self.config.vocab_size)

@@ -31,6 +31,7 @@ class BaseModel(nn.Module, ABC):
         self,
         idx: torch.Tensor,
         target: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         raise NotImplementedError
 

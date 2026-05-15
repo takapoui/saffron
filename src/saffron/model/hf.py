@@ -57,8 +57,9 @@ class HFModel(BaseModel):
         self,
         idx: torch.Tensor,
         target: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
-        logits = self.hf_model(input_ids=idx).logits
+        logits = self.hf_model(input_ids=idx, attention_mask=attention_mask).logits
         loss = None
         if target is not None:
             loss = F.cross_entropy(

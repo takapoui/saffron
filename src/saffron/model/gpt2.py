@@ -102,7 +102,13 @@ class GPT2(BaseModel):
         self,
         idx: torch.Tensor,
         target: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
+
+        if attention_mask is not None:
+            # TODO
+            raise NotImplementedError
+
         B, T = idx.size()
         assert self.config.block_size >= T, "block size exhausted"
 
