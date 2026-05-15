@@ -95,3 +95,21 @@ class SFTPrepConfig(BasePrepConfig):
             output_split=OutputSplit(d["output_split"]),
             data_files=d["data_files"],
         )
+
+
+@dataclass
+class RLPrepConfig(BasePrepConfig):
+    system_prompt: str
+    prompt_template: str
+    assistant_prefill: str
+    val_size: int
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> RLPrepConfig:
+        return cls(
+            **cls._base_kwargs(d),
+            system_prompt=d["system_prompt"],
+            prompt_template=d["prompt_template"],
+            assistant_prefill=d["assistant_prefill"],
+            val_size=d["val_size"],
+        )

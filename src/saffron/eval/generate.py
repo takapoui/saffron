@@ -21,9 +21,7 @@ def evaluate_generate(
         assert isinstance(tokenizer, HFTokenizer), "use_chat_template requires HFTokenizer"
         prompt_ids = tokenizer.apply_chat_template(
             [{"role": "user", "content": config.prompt}],
-            tokenize=True,
             add_generation_prompt=True,
-            return_dict=False,
         )
     else:
         prompt_ids = tokenizer.encode(config.prompt)

@@ -31,18 +31,8 @@ def format_example(
             {"role": "assistant", "content": example["answer"]},
         ]
     )
-    prompt_ids = enc.apply_chat_template(
-        prompt_only,
-        tokenize=True,
-        add_generation_prompt=True,
-        return_dict=False,
-    )
-    full_ids = enc.apply_chat_template(
-        messages,
-        tokenize=True,
-        add_generation_prompt=False,
-        return_dict=False,
-    )
+    prompt_ids = enc.apply_chat_template(prompt_only, add_generation_prompt=True)
+    full_ids = enc.apply_chat_template(messages, add_generation_prompt=False)
     return full_ids, len(prompt_ids)
 
 

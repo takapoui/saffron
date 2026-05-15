@@ -67,6 +67,11 @@ PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/distil
 PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/distillation/teacher_gsm8k.json --key prep_val
 ```
 
+**RL prompts (Countdown):**
+```bash
+PYTHONPATH=src .venv/bin/python scripts/prep_rl_data.py --config configs/rl/countdown.json
+```
+
 ## Training
 
 **Pretraining:**

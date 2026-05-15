@@ -34,29 +34,14 @@ class Tokenizer(ABC):
     def stop_token_ids(self) -> list[int]:
         return [self.eot_token]
 
+    @abstractmethod
     def apply_chat_template(
         self,
         messages: list[dict[str, str]],
-        tokenize: bool,
         add_generation_prompt: bool,
-        return_dict: bool,
+        continue_final_message: bool = False,
     ) -> list[int]:
-        """Simple role-tagged format for tokenizers without a native chat template."""
-        tokens: list[int] = []
-        for message in messages:
-            role, content = message["role"], message["content"]
-            if role == "system":
-                tokens += self.encode(f"<|system|>\n{content}\n")
-            elif role == "user":
-                tokens += self.encode(f"<|user|>\n{content}\n")
-            elif role == "assistant":
-                tokens += self.encode(f"<|assistant|>\n{content}")
-                tokens += [self.eot_token]
-            else:
-                raise ValueError(f"Unknown role: {role!r}")
-        if add_generation_prompt:
-            tokens += self.encode("<|assistant|>\n")
-        return tokens
+        pass
 
     @staticmethod
     def from_name(name: str, local_files_only: bool = False) -> Tokenizer:
@@ -87,6 +72,30 @@ class TiktokenTokenizer(Tokenizer):
     @property
     def vocab_size(self) -> int:
         return self._enc.n_vocab
+
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        add_generation_prompt: bool,
+        continue_final_message: bool = False,
+    ) -> list[int]:
+        if continue_final_message:
+            raise NotImplementedError("continue_final_message is not supported for tiktoken")
+        tokens: list[int] = []
+        for message in messages:
+            role, content = message["role"], message["content"]
+            if role == "system":
+                tokens += self.encode(f"<|system|>\n{content}\n")
+            elif role == "user":
+                tokens += self.encode(f"<|user|>\n{content}\n")
+            elif role == "assistant":
+                tokens += self.encode(f"<|assistant|>\n{content}")
+                tokens += [self.eot_token]
+            else:
+                raise ValueError(f"Unknown role: {role!r}")
+        if add_generation_prompt:
+            tokens += self.encode("<|assistant|>\n")
+        return tokens
 
 
 class HFTokenizer(Tokenizer):
@@ -129,13 +138,13 @@ class HFTokenizer(Tokenizer):
     def apply_chat_template(
         self,
         messages: list[dict[str, str]],
-        tokenize: bool,
         add_generation_prompt: bool,
-        return_dict: bool,
+        continue_final_message: bool = False,
     ) -> list[int]:
         return self._tok.apply_chat_template(
             messages,
-            tokenize=tokenize,
+            tokenize=True,
             add_generation_prompt=add_generation_prompt,
-            return_dict=return_dict,
+            return_dict=False,
+            continue_final_message=continue_final_message,
         )

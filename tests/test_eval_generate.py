@@ -102,9 +102,8 @@ def test_evaluate_generate_chat_template_path() -> None:
         def apply_chat_template(  # type: ignore[override]
             self,
             messages: list[dict[str, str]],
-            tokenize: bool,
             add_generation_prompt: bool,
-            return_dict: bool,
+            continue_final_message: bool = False,
         ) -> list[int]:
             self.apply_calls.append(messages)
             return [10, 11, 12]
