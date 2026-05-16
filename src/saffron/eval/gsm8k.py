@@ -38,11 +38,11 @@ def evaluate_gsm8k(
     config: EvalGSM8KConfig,
 ) -> float:
     model.eval()
-    tokenizer = model.get_tokenizer()
+    tokenizer = model.tokenizer
 
     stop_token_ids = tokenizer.stop_token_ids
     stop_set = set(stop_token_ids)
-    pad_id = stop_token_ids[0]
+    pad_id = tokenizer.pad_token_id
 
     # Collect all (prompt, ground_truth) pairs from val set
     examples: list[tuple[torch.Tensor, float]] = []
@@ -88,7 +88,6 @@ def evaluate_gsm8k(
                 max_new_tokens=config.max_tokens,
                 temperature=1.0,
                 top_k=1,
-                stop_token_ids=stop_token_ids,
                 attention_mask=attention_mask,
             )
         for i, (_, ground_truth) in enumerate(chunk):

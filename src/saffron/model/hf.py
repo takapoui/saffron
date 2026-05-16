@@ -26,10 +26,9 @@ class HFModel(BaseModel):
             torch_dtype=torch.bfloat16,
             attn_implementation="sdpa",
         )
-        self._tokenizer = HFTokenizer(config.hf_model_name)
 
-    def get_tokenizer(self) -> HFTokenizer:
-        return self._tokenizer
+    def _get_tokenizer(self) -> HFTokenizer:
+        return HFTokenizer(self.config.hf_model_name)
 
     def generate(
         self,
@@ -37,7 +36,6 @@ class HFModel(BaseModel):
         max_new_tokens: int,
         temperature: float = 1,
         top_k: int = 50,
-        stop_token_ids: list[int] | None = None,
         attention_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         # Use HF's built-in generate which supports KV cache
@@ -48,8 +46,8 @@ class HFModel(BaseModel):
             do_sample=temperature > 0 and top_k > 1,
             temperature=temperature if temperature > 0 and top_k > 1 else None,
             top_k=top_k if top_k > 1 else None,
-            eos_token_id=stop_token_ids,
-            pad_token_id=stop_token_ids[0] if stop_token_ids else None,
+            eos_token_id=self.tokenizer.stop_token_ids,
+            pad_token_id=self.tokenizer.pad_token_id,
         )
         return out
 

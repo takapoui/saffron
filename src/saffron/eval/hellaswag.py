@@ -47,14 +47,13 @@ def tokenize_example(example: dict[str, Any], enc: Tokenizer) -> tuple[torch.Ten
 @torch.no_grad()
 def evaluate_hellaswag(model: BaseModel, device: str, device_type: str) -> float:
     hellaswag = _get_hellaswag_dataset()
-    enc = model.get_tokenizer()
 
     model.eval()
     example_count = 0
     correct_count = 0
     for example in hellaswag:  # type: ignore[reportUnknownVariableType]
         example = cast(dict[str, Any], example)  # poor stubs
-        x, y = tokenize_example(example, enc=enc)
+        x, y = tokenize_example(example, enc=model.tokenizer)
         # truncate if too long
         x, y = (
             x[:, : model.config.block_size].to(device),

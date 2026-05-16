@@ -16,7 +16,7 @@ def evaluate_generate(
     config: EvalGenerateConfig,
 ) -> list[str]:
     model.eval()
-    tokenizer = model.get_tokenizer()
+    tokenizer = model.tokenizer
     if config.use_chat_template:
         assert isinstance(tokenizer, HFTokenizer), "use_chat_template requires HFTokenizer"
         prompt_ids = tokenizer.apply_chat_template(
@@ -34,7 +34,6 @@ def evaluate_generate(
         max_new_tokens=config.max_tokens,
         temperature=config.temperature,
         top_k=config.top_k,
-        stop_token_ids=stop_token_ids,
         attention_mask=torch.ones_like(idx),
     )
     stop_set = set(stop_token_ids)

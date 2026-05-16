@@ -14,6 +14,7 @@ _STOP = 9999
 class _StubTok:
     name = "stub"
     stop_token_ids: list[int] = [_STOP]
+    pad_token_id: int = _STOP
 
     def decode(self, ids: list[int]) -> str:
         return " ".join(str(i) for i in ids)
@@ -27,7 +28,8 @@ def test_evaluate_generate_stops_at_first_stop_token() -> None:
     must not appear in the decoded string."""
 
     class _SeqModel:
-        def get_tokenizer(self) -> _StubTok:
+        @property
+        def tokenizer(self) -> _StubTok:
             return _StubTok()
 
         def eval(self) -> None:
@@ -42,7 +44,6 @@ def test_evaluate_generate_stops_at_first_stop_token() -> None:
             max_new_tokens: int,
             temperature: float = 1.0,
             top_k: int = 50,
-            stop_token_ids: list[int] | None = None,
             attention_mask: torch.Tensor | None = None,
         ) -> torch.Tensor:
             B = idx.shape[0]
@@ -111,7 +112,8 @@ def test_evaluate_generate_chat_template_path() -> None:
     tok = _FakeHFTok()
 
     class _ChatModel:
-        def get_tokenizer(self) -> _FakeHFTok:
+        @property
+        def tokenizer(self) -> _FakeHFTok:
             return tok
 
         def eval(self) -> None:
@@ -126,7 +128,6 @@ def test_evaluate_generate_chat_template_path() -> None:
             max_new_tokens: int,
             temperature: float = 1.0,
             top_k: int = 50,
-            stop_token_ids: list[int] | None = None,
             attention_mask: torch.Tensor | None = None,
         ) -> torch.Tensor:
             B = idx.shape[0]

@@ -18,13 +18,20 @@ from .config import BaseConfig
 class BaseModel(nn.Module, ABC):
     config: BaseConfig
     config_class: type[BaseConfig]
+    _tokenizer: Tokenizer | None = None
 
     def supports_compile(self, device_type: str) -> bool:
         return True
 
     @abstractmethod
-    def get_tokenizer(self) -> Tokenizer:
+    def _get_tokenizer(self) -> Tokenizer:
         pass
+
+    @property
+    def tokenizer(self) -> Tokenizer:
+        if self._tokenizer is None:
+            self._tokenizer = self._get_tokenizer()
+        return self._tokenizer
 
     @abstractmethod
     def forward(
@@ -55,7 +62,6 @@ class BaseModel(nn.Module, ABC):
         max_new_tokens: int,
         temperature: float = 1,
         top_k: int = 50,
-        stop_token_ids: list[int] | None = None,
         attention_mask: torch.Tensor | None = None,  # TODO: native models don't support, HF does
     ) -> torch.Tensor:
         original_device = idx.device
@@ -76,6 +82,8 @@ class BaseModel(nn.Module, ABC):
                 dim=1,
             )
             finished = torch.zeros(idx.shape[0], dtype=torch.bool, device=idx.device)
+            pad_token_id = self.tokenizer.pad_token_id
+            stop_token_ids = self.tokenizer.stop_token_ids
             for col in range(idx.shape[1], output.shape[1]):
                 logits, _ = self(output[:, max(0, col - self.config.block_size) : col])
                 logits = logits[:, -1, :] / temperature
@@ -84,16 +92,14 @@ class BaseModel(nn.Module, ABC):
                 topk_probs, topk_indices = torch.topk(probs, k=top_k, dim=-1)
                 ix = torch.multinomial(topk_probs, num_samples=1)
                 next_token = torch.gather(topk_indices, -1, ix).squeeze(-1)
-                if stop_token_ids is not None:
-                    next_token = next_token.masked_fill(finished, stop_token_ids[0])
+                next_token = next_token.masked_fill(finished, pad_token_id)
                 output[:, col] = next_token
-                if stop_token_ids is not None:
-                    is_stop = torch.zeros_like(finished)
-                    for tid in stop_token_ids:
-                        is_stop = is_stop | (next_token == tid)
-                    finished = finished | is_stop
-                    if finished.all():
-                        break
+                is_stop = torch.zeros_like(finished)
+                for tid in stop_token_ids:
+                    is_stop = is_stop | (next_token == tid)
+                finished = finished | is_stop
+                if finished.all():
+                    break
         finally:
             self.train()
             if original_device.type == "mps":

@@ -34,6 +34,10 @@ class Tokenizer(ABC):
     def stop_token_ids(self) -> list[int]:
         return [self.eot_token]
 
+    @property
+    def pad_token_id(self) -> int:
+        return self.stop_token_ids[0]
+
     @abstractmethod
     def apply_chat_template(
         self,

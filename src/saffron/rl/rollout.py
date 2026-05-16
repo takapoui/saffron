@@ -27,23 +27,25 @@ def rollout(
     idx = prompt_input_ids.repeat_interleave(group_size, dim=0)
     attn = prompt_attention_mask.repeat_interleave(group_size, dim=0)
 
-    tokenizer = model.get_tokenizer()
+    tokenizer = model.tokenizer
     stop_token_ids = tokenizer.stop_token_ids
 
     generated = model.generate(
         idx=idx,
         max_new_tokens=max_new_tokens,
         temperature=temperature,
-        stop_token_ids=stop_token_ids,
         attention_mask=attn,
     )  # (B*G, T_full)
 
-    pad_id = stop_token_ids[0]
     T_prompt = idx.shape[1]
     completion = generated[:, T_prompt:]
-    is_pad = (completion == pad_id).int()
-    pads_before = is_pad.cumsum(dim=-1) - is_pad
-    completion_valid = pads_before == 0
+    # Boundary = first stop token (any of them), not first pad.
+    is_stop = torch.zeros_like(completion, dtype=torch.bool)
+    for sid in stop_token_ids:
+        is_stop = is_stop | (completion == sid)
+    is_stop_int = is_stop.int()
+    stops_before = is_stop_int.cumsum(dim=-1) - is_stop_int
+    completion_valid = stops_before == 0
 
     attention_mask = torch.ones_like(generated)
     # Preserve the (repeated) prompt mask so left-padded prompts aren't promoted to 1s.

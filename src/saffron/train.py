@@ -31,7 +31,7 @@ class Trainer:
         train_config: TrainConfig,
         run_config: RunConfig,
     ) -> None:
-        tokenizer = model.get_tokenizer()
+        tokenizer = model.tokenizer
         model = model.to(run_config.device)
         if model.supports_compile(run_config.device_type):
             model = cast(BaseModel, torch.compile(model))  # pyright: ignore[reportUnknownMemberType]

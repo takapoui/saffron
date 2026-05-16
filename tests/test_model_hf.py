@@ -10,14 +10,21 @@ from saffron.model.hf import HFModel
 
 
 def test_hf_generate_passes_stop_tokens_and_attention_mask() -> None:
-    """HFModel.generate must forward input_ids, attention_mask, eos_token_id,
-    and pad_token_id to the underlying hf_model.generate without alteration."""
+    """HFModel.generate must forward input_ids, attention_mask, and the tokenizer's
+    stop_token_ids / pad_token_id to the underlying hf_model.generate."""
     # Build a bare HFModel instance without touching AutoModelForCausalLM
     model: HFModel = HFModel.__new__(HFModel)
     model.hf_model = MagicMock()
     model.config = MagicMock()
 
     stop_ids = [50256, 50257]
+    # Inject a fake tokenizer so .tokenizer.{stop_token_ids,pad_token_id} resolve
+    # without loading a real HF tokenizer.
+    fake_tokenizer = MagicMock()
+    fake_tokenizer.stop_token_ids = stop_ids
+    fake_tokenizer.pad_token_id = stop_ids[0]
+    model._tokenizer = fake_tokenizer  # pyright: ignore[reportPrivateUsage]
+
     B, L = 2, 5
     input_ids = torch.randint(0, 1000, (B, L))
     attention_mask = torch.ones((B, L), dtype=torch.long)
@@ -29,7 +36,6 @@ def test_hf_generate_passes_stop_tokens_and_attention_mask() -> None:
         max_new_tokens=3,
         temperature=1.0,
         top_k=50,
-        stop_token_ids=stop_ids,
         attention_mask=attention_mask,
     )
 

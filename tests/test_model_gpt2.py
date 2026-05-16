@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 from typing import cast
+from unittest.mock import MagicMock
 
 import pytest
 import torch
 
 from saffron.constants import LABEL_IGNORE_INDEX
 from saffron.model import GPT2, GPT2Config
+
+
+def _fake_tokenizer(stop_ids: list[int]) -> MagicMock:
+    """Tokenizer mock with the two properties generate reads off."""
+    tok = MagicMock()
+    tok.stop_token_ids = stop_ids
+    tok.pad_token_id = stop_ids[0]
+    return tok
 
 
 @pytest.fixture
@@ -75,8 +84,9 @@ def test_generate_output_length(model: GPT2, config: GPT2Config) -> None:
 
 def test_generate_stops_at_stop_token(model: GPT2, config: GPT2Config) -> None:
     stop_token = 0
+    model._tokenizer = _fake_tokenizer([stop_token])  # pyright: ignore[reportPrivateUsage]
     idx = torch.randint(1, config.vocab_size, (1, 5))  # no stop tokens in prompt
-    out = model.generate(idx, max_new_tokens=50, stop_token_ids=[stop_token])
+    out = model.generate(idx, max_new_tokens=50)
     # output should be <= 5 + 50
     assert out.shape[1] <= 55
 
@@ -113,6 +123,7 @@ def test_base_model_generate_stops_finished_rows_only(config: GPT2Config) -> Non
 
     torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
     model = _DetGPT2(config)
+    model._tokenizer = _fake_tokenizer([STOP])  # pyright: ignore[reportPrivateUsage]
 
     prompt = torch.zeros((2, 3), dtype=torch.long)  # batch=2, prompt_len=3
     max_new = 4
@@ -122,7 +133,6 @@ def test_base_model_generate_stops_finished_rows_only(config: GPT2Config) -> Non
         max_new_tokens=max_new,
         temperature=1.0,
         top_k=1,
-        stop_token_ids=[STOP],
     )
 
     new_row0 = cast(list[int], out[0, prompt.shape[1] :].tolist())  # type: ignore[reportUnknownMemberType]

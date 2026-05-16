@@ -31,6 +31,7 @@ _DECODE_TABLE: dict[tuple[int, ...], str] = {
 class _StubTok:
     name = "stub"
     stop_token_ids: list[int] = [_STOP]
+    pad_token_id: int = _STOP
 
     def decode(self, ids: list[int]) -> str:
         return _DECODE_TABLE.get(tuple(ids), "")
@@ -42,7 +43,8 @@ class _StubTok:
 class _StubModel:
     """Always appends [31, 32, STOP] to the prompt — decodes to '#### 42'."""
 
-    def get_tokenizer(self) -> _StubTok:
+    @property
+    def tokenizer(self) -> _StubTok:
         return _StubTok()
 
     def eval(self) -> None:
@@ -57,7 +59,6 @@ class _StubModel:
         max_new_tokens: int,
         temperature: float = 1.0,
         top_k: int = 50,
-        stop_token_ids: list[int] | None = None,
         attention_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         B = idx.shape[0]
@@ -218,7 +219,6 @@ def test_evaluate_gsm8k_uses_attention_mask_for_padded_batches() -> None:
             max_new_tokens: int,
             temperature: float = 1.0,
             top_k: int = 50,
-            stop_token_ids: list[int] | None = None,
             attention_mask: torch.Tensor | None = None,
         ) -> torch.Tensor:
             if attention_mask is not None:

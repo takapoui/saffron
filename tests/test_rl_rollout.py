@@ -17,6 +17,10 @@ class _FakeTokenizer:
     def stop_token_ids(self) -> list[int]:
         return self._stop_ids
 
+    @property
+    def pad_token_id(self) -> int:
+        return self._stop_ids[0]
+
     def decode(self, tokens: list[int]) -> str:
         # Predictable: just hyphen-join the ids. Lets tests assert on content
         # without depending on a real vocab.
@@ -28,19 +32,19 @@ class _FakeModel:
 
     def __init__(self, generated: torch.Tensor, stop_ids: list[int]) -> None:
         self._generated = generated
-        self._tokenizer = _FakeTokenizer(stop_ids)
+        self._fake_tokenizer = _FakeTokenizer(stop_ids)
         self.last_idx: torch.Tensor | None = None
         self.last_attention_mask: torch.Tensor | None = None
 
-    def get_tokenizer(self) -> _FakeTokenizer:
-        return self._tokenizer
+    @property
+    def tokenizer(self) -> _FakeTokenizer:
+        return self._fake_tokenizer
 
     def generate(
         self,
         idx: torch.Tensor,
         max_new_tokens: int,
         temperature: float,
-        stop_token_ids: list[int],
         attention_mask: torch.Tensor,
     ) -> torch.Tensor:
         self.last_idx = idx
@@ -235,6 +239,44 @@ def test_completion_texts_have_correct_content() -> None:
         "38",  # row 5: [38,9] → strip 9
     ]
     assert rb.completion_texts == expected
+
+
+def test_boundary_is_first_stop_token_not_pad() -> None:
+    """Model emits a non-primary stop token (e.g. <|im_end|>) while pad is the
+    primary stop (e.g. <|endoftext|>). Boundary must be at the emitted stop,
+    not at the first pad — otherwise the pad token itself is treated as content."""
+    # stop_token_ids = [8, 9] → pad_token_id = 8 (primary), 9 is the other stop.
+    # Row 0: emits 9 at position 5, then pads with 8.
+    # Row 1: emits 8 (which happens to also be pad) at position 6.
+    prompt_ids = torch.tensor([[10, 11, 12, 13], [10, 11, 12, 13]])
+    prompt_attn = torch.ones_like(prompt_ids)
+    generated = torch.tensor(
+        [
+            [10, 11, 12, 13, 20, 9, 8, 8, 8],  # emits 9 (secondary stop), pads with 8
+            [10, 11, 12, 13, 30, 31, 8, 8, 8],  # emits 8 (primary stop = pad)
+        ]
+    )
+    model = _FakeModel(generated, stop_ids=[8, 9])
+
+    rb = rollout(
+        model=model,  # type: ignore[arg-type]
+        prompt_input_ids=prompt_ids,
+        prompt_attention_mask=prompt_attn,
+        group_size=1,
+        max_new_tokens=5,
+        temperature=1.0,
+    )
+
+    # Row 0: position 5 (the 9) is the stop — valid through there, 0 after.
+    # Row 1: position 6 (the first 8) is the stop — valid through there, 0 after.
+    assert rb.response_lens == [2, 3]
+    expected_response = torch.tensor(
+        [
+            [0, 0, 0, 0, 1, 1, 0, 0, 0],
+            [0, 0, 0, 0, 1, 1, 1, 0, 0],
+        ]
+    )
+    assert torch.equal(rb.response_mask, expected_response)
 
 
 def test_left_padded_prompts_preserve_mask_in_prefix() -> None:
