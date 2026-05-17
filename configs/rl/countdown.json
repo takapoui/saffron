@@ -5,14 +5,17 @@
     },
     "train": {
         "num_steps": 200,
+        "grad_clip": 1.0,
         "n_prompts_per_batch": 1,
         "group_size": 4,
         "max_new_tokens": 200,
         "temperature": 1.0,
         "clip_eps": 0.2,
         "kl_coef": 0.05,
+        "eval_every": 25,
+        "eval_n_prompts": 32,
         "log_every": 1,
-        "wandb_project": null,
+        "wandb_project": "saffron",
         "optimizer": {
             "lr": 5e-6,
             "weight_decay": 0.0

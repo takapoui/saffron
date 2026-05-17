@@ -74,9 +74,17 @@ class RLTrainer:
         self.model.train()
         for step in range(self.step, self.rl_config.num_steps):
             self.step = step
+            if self._should_eval(step):
+                self._log(step, self._evaluate())
             metrics = self._step()
             if step % self.rl_config.log_every == 0:
                 self._log(step, metrics)
+        # Final eval at end so the last checkpoint has a corresponding eval point.
+        if self.rl_config.eval_every is not None:
+            self._log(self.rl_config.num_steps, self._evaluate())
+
+    def _should_eval(self, step: int) -> bool:
+        return self.rl_config.eval_every is not None and step % self.rl_config.eval_every == 0
 
     def _step(self) -> dict[str, float]:
         cfg = self.rl_config
@@ -130,6 +138,7 @@ class RLTrainer:
         assert torch.isfinite(loss), f"non-finite loss at step {self.step}: {loss.item()}"
 
         loss.backward()  # type: ignore[reportUnknownMemberType]
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=cfg.grad_clip)
         self.optimizer.step()  # type: ignore[reportUnknownMemberType]
         self.optimizer.zero_grad()
 
@@ -149,3 +158,42 @@ class RLTrainer:
             import wandb
 
             wandb.log(metrics, step=step)
+
+    def _evaluate(self) -> dict[str, float]:
+        """Run rollouts on a fixed-seed slice of val data, return reward aggregates."""
+        cfg = self.rl_config
+        device = self.run_config.device
+        self.model.eval()
+        try:
+            # Fixed seed so the same val prompts are scored each eval round.
+            rng = np.random.default_rng(0)
+            batch = self.val_loader.sample_batch(n=cfg.eval_n_prompts, rng=rng)
+            input_ids = batch.input_ids.to(device)
+            attention_mask = batch.attention_mask.to(device)
+
+            rb = rollout(
+                self.model,
+                input_ids,
+                attention_mask,
+                group_size=cfg.group_size,
+                max_new_tokens=cfg.max_new_tokens,
+                temperature=cfg.temperature,
+            )
+
+            expanded_samples = [s for s in batch.samples for _ in range(cfg.group_size)]
+            scored = [
+                compute_reward(t, s)
+                for t, s in zip(rb.completion_texts, expanded_samples, strict=True)
+            ]
+            totals = [r for r, _ in scored]
+            formats = [m["format_reward"] for _, m in scored]
+            equations = [m["equation_reward"] for _, m in scored]
+            n = len(scored)
+            return {
+                "eval/total_reward_mean": sum(totals) / n,
+                "eval/format_reward_mean": sum(formats) / n,
+                "eval/equation_reward_mean": sum(equations) / n,
+                "eval/correct_rate": sum(1 for e in equations if e > 0) / n,
+            }
+        finally:
+            self.model.train()
