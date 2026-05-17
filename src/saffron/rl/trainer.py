@@ -69,6 +69,7 @@ class RLTrainer:
         if self.use_wandb:
             assert rl_config.wandb_project is not None
             init_wandb(rl_config.wandb_project, dataclasses.asdict(rl_config))
+            self._sample_rows: list[list[object]] = []
 
     def train(self) -> None:
         self.model.train()
@@ -144,9 +145,11 @@ class RLTrainer:
 
         dt = time.time() - t0
         reward_mean = sum(rewards) / len(rewards)
+        avg_response_len = sum(rb.response_lens) / len(rb.response_lens)
         return {
             "loss": loss.item(),
             "reward_mean": reward_mean,
+            "avg_response_len": avg_response_len,
             "step_time": dt,
             **loss_metrics,
         }
@@ -160,7 +163,11 @@ class RLTrainer:
             wandb.log(metrics, step=step)
 
     def _evaluate(self) -> dict[str, float]:
-        """Run rollouts on a fixed-seed slice of val data, return reward aggregates."""
+        """Run rollouts on a fixed-seed slice of val data, return reward aggregates.
+
+        Also accumulates a few sample completions into self._sample_rows so the
+        wandb table grows over training and you can see model behavior evolve.
+        """
         cfg = self.rl_config
         device = self.run_config.device
         self.model.eval()
@@ -189,11 +196,43 @@ class RLTrainer:
             formats = [m["format_reward"] for _, m in scored]
             equations = [m["equation_reward"] for _, m in scored]
             n = len(scored)
+
+            # Log a few sample completions to a wandb table per eval round.
+            if self.use_wandb:
+                import wandb
+
+                n_samples = min(4, n)
+                for i in range(n_samples):
+                    self._sample_rows.append(
+                        [
+                            self.step,
+                            str(expanded_samples[i]["nums"]),
+                            expanded_samples[i]["target"],
+                            rb.completion_texts[i],
+                            totals[i],
+                            formats[i],
+                            equations[i],
+                        ]
+                    )
+                table = wandb.Table(
+                    columns=[
+                        "step",
+                        "nums",
+                        "target",
+                        "completion",
+                        "total_reward",
+                        "format_reward",
+                        "equation_reward",
+                    ],
+                    data=self._sample_rows,
+                )
+                wandb.log({"eval_samples": table}, step=self.step)
+
             return {
-                "eval/total_reward_mean": sum(totals) / n,
-                "eval/format_reward_mean": sum(formats) / n,
-                "eval/equation_reward_mean": sum(equations) / n,
-                "eval/correct_rate": sum(1 for e in equations if e > 0) / n,
+                "eval_total_reward_mean": sum(totals) / n,
+                "eval_format_reward_mean": sum(formats) / n,
+                "eval_equation_reward_mean": sum(equations) / n,
+                "eval_correct_rate": sum(1 for e in equations if e > 0) / n,
             }
         finally:
             self.model.train()
