@@ -96,9 +96,11 @@ class Trainer:
         self.use_wandb = self.master_process and train_config.wandb_project is not None
         if self.use_wandb:
             assert train_config.wandb_project is not None
-            init_wandb(train_config.wandb_project, dataclasses.asdict(train_config))
-            wandb.define_metric("tokens_seen")
-            wandb.define_metric("*", step_metric="tokens_seen")
+            init_wandb(
+                train_config.wandb_project,
+                dataclasses.asdict(train_config),
+                step_metric="tokens_seen",
+            )
             self._sample_rows: list[list[object]] = []
 
     def train(self) -> None:

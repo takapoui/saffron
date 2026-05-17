@@ -1,51 +1,16 @@
 import argparse
 import json
-import os
 
 import torch
-from torch.distributed import init_process_group
 
-from saffron.config import RunConfig, TrainConfig
+from saffron.config import TrainConfig
 from saffron.data import DataConfig, LoaderType, PretrainDataLoader, SFTDataLoader
-from saffron.helpers import get_default_device, setup_file_logging
-from saffron.model import GPT2, BaseConfig, BaseModel, HFModel
+from saffron.helpers import make_run_config, setup_file_logging
+from saffron.model import MODEL_REGISTRY, BaseConfig, BaseModel
 from saffron.optim import configure_adamw
 from saffron.train import Trainer
 
 torch.set_float32_matmul_precision("high")
-
-MODEL_REGISTRY: dict[str, type[BaseModel]] = {
-    "gpt2": GPT2,
-    "hf": HFModel,
-}
-
-
-def make_run_config() -> RunConfig:
-    use_ddp = int(os.environ.get("RANK", -1)) != -1
-    if use_ddp:
-        assert torch.cuda.is_available(), "DDP training requires CUDA"
-        init_process_group(backend="nccl")
-        ddp_rank = int(os.environ["RANK"])
-        ddp_local_rank = int(os.environ["LOCAL_RANK"])
-        ddp_world_size = int(os.environ["WORLD_SIZE"])
-        device = f"cuda:{ddp_local_rank}"
-        device_type = "cuda"
-        torch.cuda.set_device(device)
-    else:
-        ddp_rank = 0
-        ddp_local_rank = 0
-        ddp_world_size = 1
-        device = get_default_device()
-        device_type = torch.device(device).type
-
-    return RunConfig(
-        device=device,
-        device_type=device_type,
-        use_ddp=use_ddp,
-        ddp_rank=ddp_rank,
-        ddp_local_rank=ddp_local_rank,
-        ddp_world_size=ddp_world_size,
-    )
 
 
 def main(

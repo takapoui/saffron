@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -6,6 +7,8 @@ from typing import Any
 
 import torch
 import wandb
+
+from .config import RunConfig
 
 
 def setup_file_logging(prefix: str) -> None:
@@ -60,9 +63,20 @@ def get_peak_flops(device_type: str) -> float:
     return float("inf")
 
 
-def init_wandb(project: str, config_dict: dict[str, Any]) -> None:
-    """Initialize wandb with a project and config dict. Caller must gate on master_process."""
+def init_wandb(
+    project: str,
+    config_dict: dict[str, Any],
+    step_metric: str | None = None,
+) -> None:
+    """Initialize wandb and (optionally) set a custom x-axis metric.
+
+    Caller must gate on master_process. When step_metric is given, all logged
+    metrics are plotted against that key instead of the default wandb step.
+    """
     wandb.init(project=project, config=config_dict)
+    if step_metric is not None:
+        wandb.define_metric(step_metric)
+        wandb.define_metric("*", step_metric=step_metric)
 
 
 def format_metric_line(step: int, metrics: dict[str, float]) -> str:
@@ -73,3 +87,38 @@ def format_metric_line(step: int, metrics: dict[str, float]) -> str:
 
     parts = [f"step: {step:5d}"] + [_fmt(k, v) for k, v in metrics.items()]
     return " | ".join(parts)
+
+
+def make_run_config() -> RunConfig:
+    """Build a RunConfig from environment.
+
+    Initializes the DDP process group if launched via torchrun.
+    """
+    use_ddp = int(os.environ.get("RANK", -1)) != -1
+    if use_ddp:
+        # Lazy import: torch.distributed pulls in runtime we don't need for single-GPU.
+        from torch.distributed import init_process_group
+
+        assert torch.cuda.is_available(), "DDP training requires CUDA"
+        init_process_group(backend="nccl")
+        ddp_rank = int(os.environ["RANK"])
+        ddp_local_rank = int(os.environ["LOCAL_RANK"])
+        ddp_world_size = int(os.environ["WORLD_SIZE"])
+        device = f"cuda:{ddp_local_rank}"
+        device_type = "cuda"
+        torch.cuda.set_device(device)
+    else:
+        ddp_rank = 0
+        ddp_local_rank = 0
+        ddp_world_size = 1
+        device = get_default_device()
+        device_type = torch.device(device).type
+
+    return RunConfig(
+        device=device,
+        device_type=device_type,
+        use_ddp=use_ddp,
+        ddp_rank=ddp_rank,
+        ddp_local_rank=ddp_local_rank,
+        ddp_world_size=ddp_world_size,
+    )
