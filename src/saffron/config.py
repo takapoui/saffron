@@ -92,6 +92,7 @@ class RunConfig:
 class RLConfig:
     # training loop
     num_steps: int
+    grad_clip: float
 
     # optimizer
     optimizer: OptimizerConfig
@@ -106,6 +107,10 @@ class RLConfig:
     clip_eps: float
     kl_coef: float
 
+    # eval
+    eval_every: int | None
+    eval_n_prompts: int
+
     # logging
     log_every: int
     wandb_project: str | None
@@ -114,6 +119,7 @@ class RLConfig:
     def from_dict(cls, d: dict[str, Any]) -> RLConfig:
         return cls(
             num_steps=d["num_steps"],
+            grad_clip=d["grad_clip"],
             optimizer=OptimizerConfig.from_dict(d["optimizer"]),
             n_prompts_per_batch=d["n_prompts_per_batch"],
             group_size=d["group_size"],
@@ -121,6 +127,8 @@ class RLConfig:
             temperature=d["temperature"],
             clip_eps=d["clip_eps"],
             kl_coef=d["kl_coef"],
+            eval_every=d["eval_every"],
+            eval_n_prompts=d["eval_n_prompts"],
             log_every=d["log_every"],
             wandb_project=d["wandb_project"],
         )
