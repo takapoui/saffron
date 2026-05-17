@@ -1,13 +1,13 @@
 {
     "model": {
         "model_type": "hf",
-        "hf_model_name": "Qwen/Qwen2.5-0.5B"
+        "hf_model_name": "Qwen/Qwen2.5-3B-Instruct"
     },
     "train": {
         "num_steps": 200,
         "grad_clip": 1.0,
         "n_prompts_per_batch": 1,
-        "group_size": 4,
+        "group_size": 8,
         "max_new_tokens": 200,
         "temperature": 1.0,
         "clip_eps": 0.2,
@@ -23,13 +23,13 @@
     },
     "data": {
         "data_root": "data/rl/countdown",
-        "tokenizer": "Qwen/Qwen2.5-0.5B"
+        "tokenizer": "Qwen/Qwen2.5-3B-Instruct"
     },
     "prep": {
         "data_root": "data/rl/countdown",
         "dataset": "Jiayi-Pan/Countdown-Tasks-3to4",
         "name": "",
-        "tokenizer": "Qwen/Qwen2.5-0.5B",
+        "tokenizer": "Qwen/Qwen2.5-3B-Instruct",
         "dataset_split": "train",
         "system_prompt": "You are a helpful assistant. You first think about the reasoning process in the mind and then provide the user with the answer.",
         "prompt_template": "Using the numbers {nums}, create an equation that equals {target}. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final equation and answer in <answer> </answer> tags, for example <answer>(1 + 2) / (3 * 5)</answer>.",
