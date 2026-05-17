@@ -2,8 +2,10 @@ import logging
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Any
 
 import torch
+import wandb
 
 
 def setup_file_logging(prefix: str) -> None:
@@ -56,3 +58,18 @@ def get_peak_flops(device_type: str) -> float:
         if all(kw in device_name for kw in keywords):
             return flops
     return float("inf")
+
+
+def init_wandb(project: str, config_dict: dict[str, Any]) -> None:
+    """Initialize wandb with a project and config dict. Caller must gate on master_process."""
+    wandb.init(project=project, config=config_dict)
+
+
+def format_metric_line(step: int, metrics: dict[str, float]) -> str:
+    """One-line formatted string for stdout/file logging."""
+
+    def _fmt(key: str, val: float) -> str:
+        return f"{key}: {val:.2e}" if key == "lr" else f"{key}: {val:.4f}"
+
+    parts = [f"step: {step:5d}"] + [_fmt(k, v) for k, v in metrics.items()]
+    return " | ".join(parts)

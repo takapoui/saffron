@@ -86,3 +86,41 @@ class RunConfig:
     ddp_rank: int
     ddp_local_rank: int
     ddp_world_size: int
+
+
+@dataclass
+class RLConfig:
+    # training loop
+    num_steps: int
+
+    # optimizer
+    optimizer: OptimizerConfig
+
+    # rollout
+    n_prompts_per_batch: int
+    group_size: int
+    max_new_tokens: int
+    temperature: float
+
+    # loss
+    clip_eps: float
+    kl_coef: float
+
+    # logging
+    log_every: int
+    wandb_project: str | None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> RLConfig:
+        return cls(
+            num_steps=d["num_steps"],
+            optimizer=OptimizerConfig.from_dict(d["optimizer"]),
+            n_prompts_per_batch=d["n_prompts_per_batch"],
+            group_size=d["group_size"],
+            max_new_tokens=d["max_new_tokens"],
+            temperature=d["temperature"],
+            clip_eps=d["clip_eps"],
+            kl_coef=d["kl_coef"],
+            log_every=d["log_every"],
+            wandb_project=d["wandb_project"],
+        )
