@@ -14,7 +14,7 @@ from .config import RunConfig, TrainConfig
 from .data import BaseDataLoader
 from .data.sft_dataloader import SFTDataLoader
 from .eval import evaluate_generate, evaluate_gsm8k, evaluate_hellaswag
-from .helpers import get_peak_flops
+from .helpers import format_metric_line, get_peak_flops, init_wandb
 from .model import BaseModel
 from .optim import get_lr_cosine
 
@@ -95,7 +95,8 @@ class Trainer:
 
         self.use_wandb = self.master_process and train_config.wandb_project is not None
         if self.use_wandb:
-            wandb.init(project=train_config.wandb_project, config=dataclasses.asdict(train_config))
+            assert train_config.wandb_project is not None
+            init_wandb(train_config.wandb_project, dataclasses.asdict(train_config))
             wandb.define_metric("tokens_seen")
             wandb.define_metric("*", step_metric="tokens_seen")
             self._sample_rows: list[list[object]] = []
@@ -320,12 +321,6 @@ class Trainer:
 
     def _log(self, step: int, metrics: dict[str, float]) -> None:
         if self.master_process:
-
-            def _fmt(key: str, val: float) -> str:
-                return f"{key}: {val:.2e}" if key == "lr" else f"{key}: {val:.4f}"
-
-            info = [f"step: {step:5d}"] + [_fmt(k, v) for k, v in metrics.items()]
-            logger.info(" | ".join(info))
-
+            logger.info(format_metric_line(step, metrics))
         if self.use_wandb:
             wandb.log({"tokens_seen": self.tokens_seen, **metrics}, step=step)

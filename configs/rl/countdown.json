@@ -1,4 +1,27 @@
 {
+    "model": {
+        "model_type": "hf",
+        "hf_model_name": "Qwen/Qwen2.5-0.5B"
+    },
+    "train": {
+        "num_steps": 200,
+        "n_prompts_per_batch": 1,
+        "group_size": 4,
+        "max_new_tokens": 200,
+        "temperature": 1.0,
+        "clip_eps": 0.2,
+        "kl_coef": 0.05,
+        "log_every": 1,
+        "wandb_project": null,
+        "optimizer": {
+            "lr": 5e-6,
+            "weight_decay": 0.0
+        }
+    },
+    "data": {
+        "data_root": "data/rl/countdown",
+        "tokenizer": "Qwen/Qwen2.5-0.5B"
+    },
     "prep": {
         "data_root": "data/rl/countdown",
         "dataset": "Jiayi-Pan/Countdown-Tasks-3to4",
