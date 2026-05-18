@@ -78,7 +78,9 @@ class RLTrainer:
             self._sample_rows: list[list[object]] = []
 
     def train(self) -> None:
-        self.model.train()
+        # Eval mode disables dropout so old_lp and new_lp_chunk see identical forwards
+        # at equal weights. With dropout on, different masks would corrupt the PPO ratio.
+        self.model.eval()
         for step in range(self.step, self.rl_config.num_steps):
             self.step = step
             if self._should_eval(step):
@@ -131,11 +133,27 @@ class RLTrainer:
         total_rows = rb.input_ids.shape[0]
         mb_size = max(1, min(cfg.microbatch_size, total_rows))
         with torch.no_grad():
-            old_lp = compute_token_log_probs(
-                self.model, rb.input_ids, rb.attention_mask, temperature=cfg.temperature
+            old_lp = torch.cat(
+                [
+                    compute_token_log_probs(
+                        self.model,
+                        rb.input_ids[s : s + mb_size],
+                        rb.attention_mask[s : s + mb_size],
+                        temperature=cfg.temperature,
+                    )
+                    for s in range(0, total_rows, mb_size)
+                ]
             )
-            ref_lp = compute_token_log_probs(
-                self.ref_model, rb.input_ids, rb.attention_mask, temperature=cfg.temperature
+            ref_lp = torch.cat(
+                [
+                    compute_token_log_probs(
+                        self.ref_model,
+                        rb.input_ids[s : s + mb_size],
+                        rb.attention_mask[s : s + mb_size],
+                        temperature=cfg.temperature,
+                    )
+                    for s in range(0, total_rows, mb_size)
+                ]
             )
 
         # Gradients accumulate across microbatches; one optimizer.step() at the end.
@@ -283,4 +301,4 @@ class RLTrainer:
                 "eval_correct_rate": sum(1 for e in equations if e > 0) / n,
             }
         finally:
-            self.model.train()
+            self.model.eval()
