@@ -20,6 +20,12 @@ The experiments below track the project's progress. Built as a personal learning
 | [003 — SFT on GSM8K with teacher distillation](experiments/003_sft_qwen_gsm8k_teacher_distilled.md) | Qwen2.5-0.5B base (500M) | GSM8K (Qwen2.5-Math-7B teacher) | 47.7% | 37% | 1x A100 SXM4 40GB |
 | [^ Same](experiments/003_sft_qwen_gsm8k_teacher_distilled.md) | Qwen2.5-1.5B base (1.5B) | GSM8K (Qwen2.5-Math-7B teacher) | **72.8%** | 51% | 1x A100 SXM4 40GB |
 
+### RL
+
+| Experiment | Model | Task | Accuracy | Hardware |
+|---|---|---|---|---|
+| [004 — GRPO on Countdown](experiments/004_rl_grpo_qwen_1.5b_countdown.md) | Qwen2.5-1.5B base | Countdown 3-num | 47.66% | 1x A100 SXM4 40GB |
+
 Full details and training curves in [`experiments/`](experiments/).
 
 ## Setup
@@ -98,5 +104,7 @@ make test         # run pytest
 ## Credits
 
 [nanoGPT](https://github.com/karpathy/nanoGPT) / [nanochat](https://github.com/karpathy/nanochat): Karpathy's minimalism philosophy and self-contained GPT-2 implementation shaped saffron's style. The peak-FLOPs tables are borrowed from nanochat.
+
+[nano-aha-moment](https://github.com/McGill-NLP/nano-aha-moment) (McGill NLP): the GRPO training setup and Countdown task configuration in experiment 004 are directly inspired by their work.
 
 Claude (Anthropic): helped with cumbersome work like writing tests, boilerplate, and some refactors.
