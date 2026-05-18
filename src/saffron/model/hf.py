@@ -21,10 +21,16 @@ class HFModel(BaseModel):
     def __init__(self, config: HFConfig) -> None:
         super().__init__()
         self.config = config
+        try:
+            import flash_attn  # noqa: F401
+
+            attn_impl = "flash_attention_2" if torch.cuda.is_available() else "sdpa"
+        except ImportError:
+            attn_impl = "sdpa"
         self.hf_model = AutoModelForCausalLM.from_pretrained(
             config.hf_model_name,
             torch_dtype=torch.bfloat16,
-            attn_implementation="sdpa",
+            attn_implementation=attn_impl,
         )
 
     def _get_tokenizer(self) -> HFTokenizer:

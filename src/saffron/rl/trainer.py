@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 import time
+from typing import cast
 
 import numpy as np
 import torch
@@ -37,7 +38,10 @@ class RLTrainer:
             raise ValueError("RLTrainer does not support DDP yet")
 
         tokenizer = model.tokenizer
-        self.model = model.to(run_config.device)
+        model = model.to(run_config.device)
+        if model.supports_compile(run_config.device_type):
+            model = cast(BaseModel, torch.compile(model))  # pyright: ignore[reportUnknownMemberType]
+        self.model = model
         self.tokenizer = tokenizer
 
         # Reference model: frozen, eval-mode, no grad tracking.
@@ -45,6 +49,8 @@ class RLTrainer:
         ref_model.eval()
         for p in ref_model.parameters():
             p.requires_grad = False
+        if ref_model.supports_compile(run_config.device_type):
+            ref_model = cast(BaseModel, torch.compile(ref_model))  # pyright: ignore[reportUnknownMemberType]
         self.ref_model = ref_model
 
         self.optimizer = optimizer
