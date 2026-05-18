@@ -107,6 +107,9 @@ class RLConfig:
     clip_eps: float
     kl_coef: float
 
+    # microbatch if a value <= B*G is used
+    microbatch_size: int
+
     # eval
     eval_every: int | None
     eval_n_prompts: int
@@ -127,6 +130,7 @@ class RLConfig:
             temperature=d["temperature"],
             clip_eps=d["clip_eps"],
             kl_coef=d["kl_coef"],
+            microbatch_size=d["microbatch_size"],
             eval_every=d["eval_every"],
             eval_n_prompts=d["eval_n_prompts"],
             log_every=d["log_every"],

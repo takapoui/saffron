@@ -106,10 +106,12 @@ class RLTrainer:
         )
 
         expanded_samples = [s for s in batch.samples for _ in range(cfg.group_size)]
-        rewards = [
-            compute_reward(t, s)[0]
-            for t, s in zip(rb.completion_texts, expanded_samples, strict=True)
+        reward_results = [
+            compute_reward(t, s) for t, s in zip(rb.completion_texts, expanded_samples, strict=True)
         ]
+        rewards = [r for r, _ in reward_results]
+        format_rewards = [m["format_reward"] for _, m in reward_results]
+        equation_rewards = [m["equation_reward"] for _, m in reward_results]
         advs_lists = compute_grpo_advantages(rewards, rb.response_lens, group_size=cfg.group_size)
 
         T_pred = rb.input_ids.shape[1] - 1
@@ -124,32 +126,67 @@ class RLTrainer:
                 self.ref_model, rb.input_ids, rb.attention_mask, temperature=cfg.temperature
             )
 
-        new_lp = compute_token_log_probs(
-            self.model, rb.input_ids, rb.attention_mask, temperature=cfg.temperature
-        )
-        loss, loss_metrics = compute_grpo_loss(
-            new_lp,
-            old_lp,
-            ref_lp,
-            advantages,
-            response_mask=rb.response_mask[:, 1:],
-            clip_eps=cfg.clip_eps,
-            kl_coef=cfg.kl_coef,
-        )
-        assert torch.isfinite(loss), f"non-finite loss at step {self.step}: {loss.item()}"
+        # Gradients accumulate across microbatches; one optimizer.step() at the end.
+        total_rows = rb.input_ids.shape[0]
+        mb_size = max(1, min(cfg.microbatch_size, total_rows))
+        loss_value = 0.0
+        loss_metrics: dict[str, float] = {}
 
-        loss.backward()  # type: ignore[reportUnknownMemberType]
+        self.optimizer.zero_grad()
+        for start in range(0, total_rows, mb_size):
+            end = min(start + mb_size, total_rows)
+            k = end - start
+            weight = k / total_rows  # so accumulated grad ≈ full-batch grad
+
+            new_lp_chunk = compute_token_log_probs(
+                self.model,
+                rb.input_ids[start:end],
+                rb.attention_mask[start:end],
+                temperature=cfg.temperature,
+            )
+            loss_chunk, metrics_chunk = compute_grpo_loss(
+                new_lp_chunk,
+                old_lp[start:end],
+                ref_lp[start:end],
+                advantages[start:end],
+                response_mask=rb.response_mask[start:end, 1:],
+                clip_eps=cfg.clip_eps,
+                kl_coef=cfg.kl_coef,
+            )
+            assert torch.isfinite(loss_chunk), (
+                f"non-finite loss at step {self.step}, microbatch [{start}:{end}]: "
+                f"{loss_chunk.item()}"
+            )
+
+            (loss_chunk * weight).backward()  # type: ignore[reportUnknownMemberType]
+            loss_value += loss_chunk.item() * weight
+            for key, val in metrics_chunk.items():
+                loss_metrics[key] = loss_metrics.get(key, 0.0) + val * weight
+
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=cfg.grad_clip)
         self.optimizer.step()  # type: ignore[reportUnknownMemberType]
         self.optimizer.zero_grad()
 
         dt = time.time() - t0
-        reward_mean = sum(rewards) / len(rewards)
-        avg_response_len = sum(rb.response_lens) / len(rb.response_lens)
+        n_completions = len(rewards)
+        reward_mean = sum(rewards) / n_completions
+        format_reward_mean = sum(format_rewards) / n_completions
+        equation_reward_mean = sum(equation_rewards) / n_completions
+        avg_response_len = sum(rb.response_lens) / n_completions
+
+        # Truncation: completion used the full generation budget. It likely means the model
+        # didn't emit a stop toke. (Small chance that it produced exactly that number of tokens.)
+        truncation_rate = (
+            sum(1 for L in rb.response_lens if cfg.max_new_tokens == L) / n_completions
+        )
+
         return {
-            "loss": loss.item(),
+            "loss": loss_value,
             "reward_mean": reward_mean,
+            "format_reward_mean": format_reward_mean,
+            "equation_reward_mean": equation_reward_mean,
             "avg_response_len": avg_response_len,
+            "truncation_rate": truncation_rate,
             "step_time": dt,
             **loss_metrics,
         }
