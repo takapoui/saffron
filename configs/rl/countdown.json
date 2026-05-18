@@ -1,17 +1,17 @@
 {
     "model": {
         "model_type": "hf",
-        "hf_model_name": "Qwen/Qwen2.5-3B-Instruct"
+        "hf_model_name": "Qwen/Qwen2.5-1.5B"
     },
     "train": {
-        "num_steps": 200,
+        "num_steps": 1000,
         "grad_clip": 1.0,
-        "n_prompts_per_batch": 32,
+        "n_prompts_per_batch": 8,
         "group_size": 4,
-        "max_new_tokens": 300,
+        "max_new_tokens": 500,
         "temperature": 1.0,
         "clip_eps": 0.2,
-        "kl_coef": 0.05,
+        "kl_coef": 0.005,
         "microbatch_size": 8,
         "eval_every": 25,
         "eval_n_prompts": 32,
@@ -23,14 +23,14 @@
         }
     },
     "data": {
-        "data_root": "data/rl/Qwen/Qwen2.5-3B-Instruct/3num/countdown",
-        "tokenizer": "Qwen/Qwen2.5-3B-Instruct"
+        "data_root": "data/rl/Qwen/Qwen2.5-1.5B/3num/countdown",
+        "tokenizer": "Qwen/Qwen2.5-1.5B"
     },
     "prep": {
-        "data_root": "data/rl/Qwen/Qwen2.5-3B-Instruct/3num/countdown",
+        "data_root": "data/rl/Qwen/Qwen2.5-1.5B/3num/countdown",
         "dataset": "Jiayi-Pan/Countdown-Tasks-3to4",
         "name": "",
-        "tokenizer": "Qwen/Qwen2.5-3B-Instruct",
+        "tokenizer": "Qwen/Qwen2.5-1.5B",
         "dataset_split": "train",
         "system_prompt": "You are a helpful assistant. You first think about the reasoning process in the mind and then provide the user with the answer.",
         "prompt_template": "Using the numbers {nums}, create an equation that equals {target}. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final equation and answer in <answer> </answer> tags, for example <answer>(1 + 2) / (3 * 5)</answer>.",
