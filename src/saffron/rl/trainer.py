@@ -83,6 +83,10 @@ class RLTrainer:
         # Final eval at end so the last checkpoint has a corresponding eval point.
         if self.rl_config.eval_every is not None:
             self._log(self.rl_config.num_steps, self._evaluate())
+        if self.use_wandb:
+            import wandb
+
+            wandb.finish()
 
     def _should_eval(self, step: int) -> bool:
         return self.rl_config.eval_every is not None and step % self.rl_config.eval_every == 0
@@ -118,6 +122,8 @@ class RLTrainer:
         per_completion = torch.tensor([al[0] for al in advs_lists], dtype=torch.float32)
         advantages = per_completion.unsqueeze(-1).expand(-1, T_pred).to(device)
 
+        total_rows = rb.input_ids.shape[0]
+        mb_size = max(1, min(cfg.microbatch_size, total_rows))
         with torch.no_grad():
             old_lp = compute_token_log_probs(
                 self.model, rb.input_ids, rb.attention_mask, temperature=cfg.temperature
@@ -127,8 +133,6 @@ class RLTrainer:
             )
 
         # Gradients accumulate across microbatches; one optimizer.step() at the end.
-        total_rows = rb.input_ids.shape[0]
-        mb_size = max(1, min(cfg.microbatch_size, total_rows))
         loss_value = 0.0
         loss_metrics: dict[str, float] = {}
 
@@ -238,8 +242,9 @@ class RLTrainer:
             if self.use_wandb:
                 import wandb
 
-                n_samples = min(4, n)
-                for i in range(n_samples):
+                sample_rng = np.random.default_rng(self.step)
+                indices: list[int] = sample_rng.choice(n, size=min(5, n), replace=False).tolist()
+                for i in indices:
                     self._sample_rows.append(
                         [
                             self.step,
