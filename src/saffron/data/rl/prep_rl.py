@@ -24,6 +24,19 @@ def prepare_rl_dataset(prep_config: RLPrepConfig) -> None:
         split=prep_config.dataset_split,
     )
 
+    if prep_config.num_operands is not None:
+        before = len(ds)
+        target_n = prep_config.num_operands
+
+        def _has_n_nums(ex: dict[str, Any]) -> bool:
+            return len(ex["nums"]) == target_n
+
+        ds = ds.filter(_has_n_nums, desc=f"Filtering to {target_n}-number examples")
+        logger.info(
+            f"Filtered to {target_n}-num examples: "
+            f"{len(ds)}/{before} kept ({100 * len(ds) / before:.1f}%)"
+        )
+
     def preprocess(example: dict[str, Any]) -> dict[str, Any]:
         user_message = prep_config.prompt_template.format(
             nums=example["nums"], target=example["target"]

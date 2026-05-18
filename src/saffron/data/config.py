@@ -103,6 +103,8 @@ class RLPrepConfig(BasePrepConfig):
     prompt_template: str
     assistant_prefill: str
     val_size: int
+    # Optional filter for Countdown: keep only examples with exactly num_operands numbers
+    num_operands: int | None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> RLPrepConfig:
@@ -112,4 +114,5 @@ class RLPrepConfig(BasePrepConfig):
             prompt_template=d["prompt_template"],
             assistant_prefill=d["assistant_prefill"],
             val_size=d["val_size"],
+            num_operands=d.get("num_operands"),
         )
