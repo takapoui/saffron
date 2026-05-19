@@ -6,17 +6,17 @@
 
 ```bash
 # Teacher sampling
-PYTHONPATH=src .venv/bin/python scripts/sample_teacher.py \
+.venv/bin/python scripts/sample_teacher.py \
     --config configs/distillation/teacher_gsm8k.json --key Qwen2.5-Math-7B-Instruct
 
 # Tokenize teacher answers + val set
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/distillation/teacher_gsm8k.json --key prep_train
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/distillation/teacher_gsm8k.json --key prep_val
 
 # Training
-PYTHONPATH=src .venv/bin/python scripts/run_train.py \
+.venv/bin/python scripts/run_train.py \
     --config configs/distillation/qwen_0.5b_gsm8k_teacher.json
 ```
 
@@ -230,13 +230,13 @@ Both students get this easy problem right, but the exp 003 student picks up the 
 **Reproduce:**
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/sample_teacher.py \
+.venv/bin/python scripts/sample_teacher.py \
     --config configs/distillation/teacher_gsm8k_deepseek.json --key deepseek-math-7b-instruct
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/distillation/teacher_gsm8k_deepseek.json --key prep_train
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/distillation/teacher_gsm8k_deepseek.json --key prep_val
-PYTHONPATH=src .venv/bin/python scripts/run_train.py \
+.venv/bin/python scripts/run_train.py \
     --config configs/distillation/qwen_0.5b_gsm8k_teacher_deepseek.json
 ```
 
@@ -284,19 +284,19 @@ The output style matches DeepSeek's terser reasoning: two-line prose, no enumera
 
 ```bash
 # 1.5B baseline (original GSM8K)
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/sft/qwen_1.5b_gsm8k.json --key prep_train
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/sft/qwen_1.5b_gsm8k.json --key prep_val
-PYTHONPATH=src .venv/bin/python scripts/run_train.py \
+.venv/bin/python scripts/run_train.py \
     --config configs/sft/qwen_1.5b_gsm8k.json
 
 # 1.5B teacher (reuses Qwen-Math jsonl from main run, re-prepped with 1.5B tokenizer)
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/distillation/qwen_1.5b_gsm8k_teacher.json --key prep_train
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/distillation/qwen_1.5b_gsm8k_teacher.json --key prep_val
-PYTHONPATH=src .venv/bin/python scripts/run_train.py \
+.venv/bin/python scripts/run_train.py \
     --config configs/distillation/qwen_1.5b_gsm8k_teacher.json
 ```
 

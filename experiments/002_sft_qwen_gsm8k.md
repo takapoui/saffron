@@ -6,13 +6,13 @@
 
 ```bash
 # Data prep
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/sft/qwen_0.5b_gsm8k.json --key prep_train
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py \
+.venv/bin/python scripts/prep_sft_data.py \
     --config configs/sft/qwen_0.5b_gsm8k.json --key prep_val
 
 # Training
-PYTHONPATH=src .venv/bin/python scripts/run_train.py \
+.venv/bin/python scripts/run_train.py \
     --config configs/sft/qwen_0.5b_gsm8k.json
 ```
 

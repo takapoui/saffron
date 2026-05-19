@@ -6,11 +6,11 @@
 
 ```bash
 # Data prep
-PYTHONPATH=src .venv/bin/python scripts/prep_pretrain_data.py \
+.venv/bin/python scripts/prep_pretrain_data.py \
     --config configs/pretraining/gpt2_small.json
 
 # Training (8x GPUs)
-PYTHONPATH=src .venv/bin/torchrun --nproc_per_node=8 scripts/run_train.py \
+.venv/bin/torchrun --nproc_per_node=8 scripts/run_train.py \
     --config configs/pretraining/gpt2_small.json
 ```
 

@@ -52,30 +52,30 @@ make install-vllm     # additionally installs vllm (only needed for teacher samp
 
 **Pretraining:**
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/prep_pretrain_data.py --config configs/pretraining/gpt2_small.json
+.venv/bin/python scripts/prep_pretrain_data.py --config configs/pretraining/gpt2_small.json
 ```
 
 Each config file contains a `prep` section with dataset and tokenization settings alongside the training config.
 
 **SFT:**
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/sft/qwen_0.5b_gsm8k.json --key prep_train
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/sft/qwen_0.5b_gsm8k.json --key prep_val
+.venv/bin/python scripts/prep_sft_data.py --config configs/sft/qwen_0.5b_gsm8k.json --key prep_train
+.venv/bin/python scripts/prep_sft_data.py --config configs/sft/qwen_0.5b_gsm8k.json --key prep_val
 ```
 
 **Teacher sampling (GSM8K):**
 ```bash
 # Step 1 — generate teacher answers with round-robin validation
-PYTHONPATH=src .venv/bin/python scripts/sample_teacher.py --config configs/distillation/teacher_gsm8k.json --key Qwen2.5-Math-7B-Instruct
+.venv/bin/python scripts/sample_teacher.py --config configs/distillation/teacher_gsm8k.json --key Qwen2.5-Math-7B-Instruct
 
 # Step 2 — tokenize teacher answers and val split into npy shards
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/distillation/teacher_gsm8k.json --key prep_train
-PYTHONPATH=src .venv/bin/python scripts/prep_sft_data.py --config configs/distillation/teacher_gsm8k.json --key prep_val
+.venv/bin/python scripts/prep_sft_data.py --config configs/distillation/teacher_gsm8k.json --key prep_train
+.venv/bin/python scripts/prep_sft_data.py --config configs/distillation/teacher_gsm8k.json --key prep_val
 ```
 
 **RL prompts (Countdown):**
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/prep_rl_data.py --config configs/rl/countdown.json
+.venv/bin/python scripts/prep_rl_data.py --config configs/rl/countdown.json
 ```
 
 ## Training
@@ -83,15 +83,15 @@ PYTHONPATH=src .venv/bin/python scripts/prep_rl_data.py --config configs/rl/coun
 **Pretraining:**
 ```bash
 # single device (CPU, MPS, or CUDA)
-PYTHONPATH=src .venv/bin/python scripts/run_train.py --config configs/pretraining/gpt2_small.json
+.venv/bin/python scripts/run_train.py --config configs/pretraining/gpt2_small.json
 
 # multi GPU (e.g. 8 GPUs)
-PYTHONPATH=src .venv/bin/torchrun --nproc_per_node=8 scripts/run_train.py --config configs/pretraining/gpt2_small.json
+.venv/bin/torchrun --nproc_per_node=8 scripts/run_train.py --config configs/pretraining/gpt2_small.json
 ```
 
 **SFT:**
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/run_train.py --config configs/sft/qwen_0.5b_gsm8k.json
+.venv/bin/python scripts/run_train.py --config configs/sft/qwen_0.5b_gsm8k.json
 ```
 
 ## Development
