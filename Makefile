@@ -47,7 +47,7 @@ install-local: $(PYTHON)
 install-cluster: $(PYTHON)-system
 	$(UV) pip install -r requirements-cluster.txt
 	$(UV) pip install -e .
-	$(PYTHON) -c "import flash_attn" 2>/dev/null || $(UV) pip install flash-attn --no-build-isolation || true
+	$(PYTHON) -c "import flash_attn" 2>/dev/null || $(UV) pip install flash-attn --no-build-isolation --no-deps || true
 
 install-vllm: install-cluster
 	$(UV) pip install vllm
@@ -69,7 +69,7 @@ lint-fix:
 	$(RUFF) check . --fix
 
 test:
-	PYTHONPATH=src $(PYTEST) tests/ -v
+	$(PYTEST) tests/ -v
 
 clean:
 	rm -rf $(VENV)

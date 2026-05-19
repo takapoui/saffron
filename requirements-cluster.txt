@@ -1,6 +1,7 @@
 # Same as requirements.txt but excludes torch — use on Lambda Labs with system-site-packages
 # so that cuDNN resolves correctly via Lambda Stack
 datasets
+einops
 jinja2>=3.1.0
 networkx>=3.0
 numpy<2
