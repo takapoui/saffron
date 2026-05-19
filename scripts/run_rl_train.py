@@ -11,7 +11,7 @@ from saffron.data import RLDataLoader
 from saffron.helpers import make_run_config, setup_file_logging
 from saffron.model import MODEL_REGISTRY, BaseConfig, BaseModel
 from saffron.optim import configure_adamw
-from saffron.rl.trainer import RLTrainer
+from saffron.train import RLTrainer
 
 torch.set_float32_matmul_precision("high")
 

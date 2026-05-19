@@ -1,11 +1,10 @@
-"""GRPO trainer. Mirrors the structure of saffron.train.Trainer."""
+"""GRPO trainer. Mirrors the structure of SupervisedTrainer."""
 
 from __future__ import annotations
 
 import dataclasses
 import logging
 import time
-from typing import cast
 
 import numpy as np
 import torch
@@ -13,17 +12,17 @@ import torch
 from ..config import RLConfig, RunConfig
 from ..data import RLDataLoader
 from ..eval.rl.reward import compute_reward
-from ..helpers import format_metric_line, init_wandb
 from ..model import BaseModel
-from .advantage import compute_grpo_advantages
-from .logprobs import compute_token_log_probs
-from .loss import compute_grpo_loss
-from .rollout import rollout
+from ..rl.advantage import compute_grpo_advantages
+from ..rl.logprobs import compute_token_log_probs
+from ..rl.loss import compute_grpo_loss
+from ..rl.rollout import rollout
+from .base_trainer import BaseTrainer
 
 logger = logging.getLogger(__name__)
 
 
-class RLTrainer:
+class RLTrainer(BaseTrainer):
     def __init__(
         self,
         model: BaseModel,
@@ -34,48 +33,25 @@ class RLTrainer:
         rl_config: RLConfig,
         run_config: RunConfig,
     ) -> None:
+        super().__init__(run_config)
         if run_config.use_ddp:
             raise ValueError("RLTrainer does not support DDP yet")
 
-        tokenizer = model.tokenizer
-        model = model.to(run_config.device)
-        if model.supports_compile(run_config.device_type):
-            model = cast(BaseModel, torch.compile(model))  # pyright: ignore[reportUnknownMemberType]
-        self.model = model
-        self.tokenizer = tokenizer
+        self.tokenizer = model.tokenizer
+        self._validate_tokenizer_match(self.tokenizer, train_loader.tokenizer)
 
-        # Reference model: frozen, eval-mode, no grad tracking.
-        ref_model = ref_model.to(run_config.device)
-        ref_model.eval()
-        for p in ref_model.parameters():
-            p.requires_grad = False
-        if ref_model.supports_compile(run_config.device_type):
-            ref_model = cast(BaseModel, torch.compile(ref_model))  # pyright: ignore[reportUnknownMemberType]
-        self.ref_model = ref_model
+        self.model = self._prepare_model(model)
+        self.ref_model = self._prepare_frozen_model(ref_model)
 
         self.optimizer = optimizer
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.rl_config = rl_config
-        self.run_config = run_config
 
-        if self.tokenizer.name != train_loader.tokenizer.name:
-            raise ValueError(
-                f"Model tokenizer '{self.tokenizer.name}' does not match "
-                f"data tokenizer '{train_loader.tokenizer.name}'. "
-                "Re-run data prep with the correct tokenizer."
-            )
-
-        self.master_process = run_config.ddp_rank == 0
         self.step = 0
         self._rng = np.random.default_rng(42)
-        self._train_start_time = time.time()
 
-        self.use_wandb = self.master_process and rl_config.wandb_project is not None
-        if self.use_wandb:
-            assert rl_config.wandb_project is not None
-            init_wandb(rl_config.wandb_project, dataclasses.asdict(rl_config))
-            self._sample_rows: list[list[object]] = []
+        self._init_wandb(rl_config.wandb_project, dataclasses.asdict(rl_config))
 
     def train(self) -> None:
         # Eval mode disables dropout so old_lp and new_lp_chunk see identical forwards
@@ -91,10 +67,7 @@ class RLTrainer:
         # Final eval at end so the last checkpoint has a corresponding eval point.
         if self.rl_config.eval_every is not None:
             self._log(self.rl_config.num_steps, self._evaluate())
-        if self.use_wandb:
-            import wandb
-
-            wandb.finish()
+        self._finish_wandb()
 
     def _should_eval(self, step: int) -> bool:
         return self.rl_config.eval_every is not None and step % self.rl_config.eval_every == 0
@@ -219,14 +192,6 @@ class RLTrainer:
             **loss_metrics,
         }
 
-    def _log(self, step: int, metrics: dict[str, float]) -> None:
-        if self.master_process:
-            logger.info(format_metric_line(step, metrics))
-        if self.use_wandb:
-            import wandb
-
-            wandb.log(metrics, step=step)
-
     def _evaluate(self) -> dict[str, float]:
         """Run rollouts on a fixed-seed slice of val data, return reward aggregates.
 
@@ -264,8 +229,6 @@ class RLTrainer:
 
             # Log a few sample completions to a wandb table per eval round.
             if self.use_wandb:
-                import wandb
-
                 sample_rng = np.random.default_rng(self.step)
                 indices: list[int] = sample_rng.choice(n, size=min(5, n), replace=False).tolist()
                 for i in indices:
@@ -280,7 +243,8 @@ class RLTrainer:
                             equations[i],
                         ]
                     )
-                table = wandb.Table(
+                self._log_table(
+                    "eval_samples",
                     columns=[
                         "step",
                         "nums",
@@ -290,9 +254,9 @@ class RLTrainer:
                         "format_reward",
                         "equation_reward",
                     ],
-                    data=self._sample_rows,
+                    rows=self._sample_rows,
+                    step=self.step,
                 )
-                wandb.log({"eval_samples": table}, step=self.step)
 
             return {
                 "eval_total_reward_mean": sum(totals) / n,

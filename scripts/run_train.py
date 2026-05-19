@@ -8,7 +8,7 @@ from saffron.data import DataConfig, LoaderType, PretrainDataLoader, SFTDataLoad
 from saffron.helpers import make_run_config, setup_file_logging
 from saffron.model import MODEL_REGISTRY, BaseConfig, BaseModel
 from saffron.optim import configure_adamw
-from saffron.train import Trainer
+from saffron.train import SupervisedTrainer
 
 torch.set_float32_matmul_precision("high")
 
@@ -37,7 +37,7 @@ def main(
         config=train_config.optimizer,
         device_type=run_config.device_type,
     )
-    trainer = Trainer(
+    trainer = SupervisedTrainer(
         model=model,
         optimizer=optimizer,
         train_loader=train_loader,

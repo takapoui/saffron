@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 import torch
 
 from ..config import RunConfig
+from ..tokenizer import Tokenizer
 from .config import DataConfig
 
 logger = logging.getLogger(__name__)
@@ -28,13 +29,14 @@ class BaseDataLoader(ABC):
         )
         with open(meta_path) as f:
             meta = json.load(f)
-        self.tokenizer_name: str = meta["tokenizer"]
-        if self.tokenizer_name != data_config.tokenizer:
+        meta_tokenizer_name: str = meta["tokenizer"]
+        if meta_tokenizer_name != data_config.tokenizer:
             raise ValueError(
                 f"Data in '{data_config.data_root}' was built with tokenizer "
-                f"'{self.tokenizer_name}' but config specifies '{data_config.tokenizer}'. "
+                f"'{meta_tokenizer_name}' but config specifies '{data_config.tokenizer}'. "
                 "Re-run data prep with the correct tokenizer."
             )
+        self.tokenizer: Tokenizer = Tokenizer.from_name(meta_tokenizer_name)
         self.world_size = run_config.ddp_world_size
 
         self.shards = sorted(

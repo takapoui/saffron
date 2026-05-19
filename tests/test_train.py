@@ -1,4 +1,4 @@
-"""Tests for Trainer scheduling and resume logic."""
+"""Tests for SupervisedTrainer scheduling and resume logic."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import torch
 from saffron.config import OptimizerConfig, RunConfig, ScheduleConfig, TrainConfig
 from saffron.eval import EvalGenerateConfig, EvalGSM8KConfig, EvalHellaswagConfig, EvalLossConfig
 from saffron.model import GPT2, GPT2Config
-from saffron.train import Trainer
+from saffron.train import SupervisedTrainer
 
 # ---------------------------------------------------------------------------
 # Helpers shared across trainer tests
@@ -85,7 +85,8 @@ class _FakeLoader:
     ) -> None:
         self.B = B
         self.T = T
-        self.tokenizer_name = tokenizer_name
+        self.tokenizer = MagicMock(name=tokenizer_name)
+        self.tokenizer.name = tokenizer_name
         self._vocab = vocab_size
 
     def reset(self) -> None:
@@ -106,11 +107,11 @@ def _make_trainer(
     cfg: TrainConfig,
     train_loader: Any = None,
     val_loader: Any = None,
-) -> Trainer:
+) -> SupervisedTrainer:
     train_loader = train_loader or _FakeLoader()
     val_loader = val_loader or _FakeLoader()
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
-    return Trainer(
+    return SupervisedTrainer(
         model=model,
         optimizer=optimizer,
         train_loader=train_loader,
@@ -121,7 +122,7 @@ def _make_trainer(
 
 
 # ---------------------------------------------------------------------------
-# Trainer scheduling tests
+# SupervisedTrainer scheduling tests
 # ---------------------------------------------------------------------------
 
 
@@ -166,7 +167,7 @@ def test_trainer_runs_final_eval_when_last_step_not_aligned(
 
 
 # ---------------------------------------------------------------------------
-# Trainer resume tests
+# SupervisedTrainer resume tests
 # ---------------------------------------------------------------------------
 
 

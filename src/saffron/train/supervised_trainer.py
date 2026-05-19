@@ -4,24 +4,24 @@ import contextlib
 import dataclasses
 import logging
 import time
-from typing import cast
+from typing import Any, cast
 
 import torch
-import wandb
 from torch.nn.parallel import DistributedDataParallel
 
-from .config import RunConfig, TrainConfig
-from .data import BaseDataLoader
-from .data.sft_dataloader import SFTDataLoader
-from .eval import evaluate_generate, evaluate_gsm8k, evaluate_hellaswag
-from .helpers import format_metric_line, get_peak_flops, init_wandb
-from .model import BaseModel
-from .optim import get_lr_cosine
+from ..config import RunConfig, TrainConfig
+from ..data import BaseDataLoader
+from ..data.sft_dataloader import SFTDataLoader
+from ..eval import evaluate_generate, evaluate_gsm8k, evaluate_hellaswag
+from ..helpers import get_peak_flops
+from ..model import BaseModel
+from ..optim import get_lr_cosine
+from .base_trainer import BaseTrainer
 
 logger = logging.getLogger(__name__)
 
 
-class Trainer:
+class SupervisedTrainer(BaseTrainer):
     def __init__(
         self,
         model: BaseModel,
@@ -31,12 +31,11 @@ class Trainer:
         train_config: TrainConfig,
         run_config: RunConfig,
     ) -> None:
-        tokenizer = model.tokenizer
-        model = model.to(run_config.device)
-        if model.supports_compile(run_config.device_type):
-            model = cast(BaseModel, torch.compile(model))  # pyright: ignore[reportUnknownMemberType]
-        self.raw_model = model
+        super().__init__(run_config)
+        self.tokenizer = model.tokenizer
+        self._validate_tokenizer_match(self.tokenizer, train_loader.tokenizer)
 
+        self.raw_model = self._prepare_model(model)
         if run_config.use_ddp:
             self.model = DistributedDataParallel(
                 self.raw_model, device_ids=[run_config.ddp_local_rank]
@@ -48,19 +47,8 @@ class Trainer:
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.train_config = train_config
-        self.run_config = run_config
-        self.tokenizer = tokenizer
-        if self.tokenizer.name != train_loader.tokenizer_name:
-            raise ValueError(
-                f"Model tokenizer '{self.tokenizer.name}' does not match "
-                f"data tokenizer '{train_loader.tokenizer_name}'. "
-                "Re-run data prep with the correct tokenizer."
-            )
-        self._num_model_parameters = sum(p.numel() for p in model.parameters())
+        self._num_model_parameters = sum(p.numel() for p in self.raw_model.parameters())
         self._device_peak_flops = get_peak_flops(run_config.device_type)
-
-        # master process
-        self.master_process = run_config.ddp_rank == 0
 
         B, T = train_loader.B, train_loader.T
         assert train_config.total_batch_size % (B * T * run_config.ddp_world_size) == 0, (
@@ -91,17 +79,12 @@ class Trainer:
             self.train_loader.advance(checkpoint["step"] * train_config.total_batch_size)
 
         self.tokens_seen = self.step * train_config.total_batch_size
-        self._train_start_time = time.time()
 
-        self.use_wandb = self.master_process and train_config.wandb_project is not None
-        if self.use_wandb:
-            assert train_config.wandb_project is not None
-            init_wandb(
-                train_config.wandb_project,
-                dataclasses.asdict(train_config),
-                step_metric="tokens_seen",
-            )
-            self._sample_rows: list[list[object]] = []
+        self._init_wandb(
+            train_config.wandb_project,
+            dataclasses.asdict(train_config),
+            step_metric="tokens_seen",
+        )
 
     def train(self) -> None:
         self.model.train()
@@ -233,8 +216,7 @@ class Trainer:
         if self.master_process and last_step % self.train_config.checkpoint_every != 0:
             self._save_checkpoint(last_step)
 
-        if self.use_wandb:
-            wandb.finish()
+        self._finish_wandb()
 
     def _eval_loss(self) -> float:
         self.val_loader.reset()
@@ -269,13 +251,15 @@ class Trainer:
             )
             for sample in completions:
                 logger.info(f"Step {step} sample: {sample}")
-            if self.use_wandb:
-                for sample in completions:
-                    self._sample_rows.append([step, self.tokens_seen, sample])
-                table = wandb.Table(
-                    columns=["step", "tokens_seen", "completion"], data=self._sample_rows
-                )
-                wandb.log({"samples": table, "tokens_seen": self.tokens_seen}, step=step)
+            for sample in completions:
+                self._sample_rows.append([step, self.tokens_seen, sample])
+            self._log_table(
+                "samples",
+                columns=["step", "tokens_seen", "completion"],
+                rows=self._sample_rows,
+                step=step,
+                extra_wandb={"tokens_seen": self.tokens_seen},
+            )
 
     def _eval_hellaswag_task(self, step: int) -> dict[str, float]:
         if self.master_process:
@@ -321,8 +305,14 @@ class Trainer:
             old.unlink()
             logger.info(f"Deleted old checkpoint {old}")
 
-    def _log(self, step: int, metrics: dict[str, float]) -> None:
-        if self.master_process:
-            logger.info(format_metric_line(step, metrics))
-        if self.use_wandb:
-            wandb.log({"tokens_seen": self.tokens_seen, **metrics}, step=step)
+    def _log(
+        self,
+        step: int,
+        metrics: dict[str, float],
+        *,
+        extra_wandb: dict[str, Any] | None = None,
+    ) -> None:
+        merged: dict[str, Any] = {"tokens_seen": self.tokens_seen}
+        if extra_wandb:
+            merged.update(extra_wandb)
+        super()._log(step, metrics, extra_wandb=merged)
