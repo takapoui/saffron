@@ -174,9 +174,9 @@ def test_trainer_runs_final_eval_when_last_step_not_aligned(
 def test_trainer_resume_pretrain_loader_advance_matches_checkpoint(
     tmp_path: Path, tiny_model: GPT2
 ) -> None:
-    """On a normal resume the loader must advance by
-    checkpoint_step × total_batch_size tokens, and self.step must be
-    checkpoint_step + 1."""
+    """Save-after-step semantics: on a normal resume the loader must advance by
+    (checkpoint_step + 1) × total_batch_size tokens (positioning it to serve the
+    next unrun step), and self.step must be checkpoint_step + 1."""
     RESUME_STEP = 7
     TOTAL_BATCH = 4
 
@@ -208,7 +208,7 @@ def test_trainer_resume_pretrain_loader_advance_matches_checkpoint(
     trainer = _make_trainer(tmp_path, tiny_model, cfg, train_loader=train_loader)
 
     assert trainer.step == RESUME_STEP + 1
-    assert advance_log == [RESUME_STEP * TOTAL_BATCH]
+    assert advance_log == [(RESUME_STEP + 1) * TOTAL_BATCH]
 
 
 def test_trainer_resume_sft_loader_advance_matches_checkpoint_semantics(

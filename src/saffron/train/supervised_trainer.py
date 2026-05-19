@@ -31,7 +31,7 @@ class SupervisedTrainer(BaseTrainer):
         train_config: TrainConfig,
         run_config: RunConfig,
     ) -> None:
-        super().__init__(run_config)
+        super().__init__(run_config, checkpoint_dir=train_config.checkpoint_dir)
         self.tokenizer = model.tokenizer
         self._validate_tokenizer_match(self.tokenizer, train_loader.tokenizer)
 
@@ -65,18 +65,20 @@ class SupervisedTrainer(BaseTrainer):
             self.step = 0
             self.train_loader.reset()
         elif train_config.resume_weights_only:
-            checkpoint = torch.load(resume_from, weights_only=False, map_location=run_config.device)
+            checkpoint = self._load_checkpoint(resume_from)
             self.raw_model.load_state_dict(checkpoint["model_dict"])
             self.step = 0
             self.train_loader.reset()
             logger.info("Loaded weights from %s (weights only, step reset to 0).", resume_from)
         else:
-            checkpoint = torch.load(resume_from, weights_only=False, map_location=run_config.device)
+            checkpoint = self._load_checkpoint(resume_from)
             self.raw_model.load_state_dict(checkpoint["model_dict"])
             self.optimizer.load_state_dict(checkpoint["optimizer_dict"])
             self.step = checkpoint["step"] + 1
             self.train_loader.reset()
-            self.train_loader.advance(checkpoint["step"] * train_config.total_batch_size)
+            # Saved-after-step semantics: step N's batch was already consumed before the
+            # checkpoint, so advance past N+1 batches to serve step N+1's data next.
+            self.train_loader.advance(self.step * train_config.total_batch_size)
 
         self.tokens_seen = self.step * train_config.total_batch_size
 
@@ -116,9 +118,6 @@ class SupervisedTrainer(BaseTrainer):
                 metrics = self._eval_gsm8k_task(step=step)
                 if metrics:
                     self._log(step, metrics)
-
-            if self.master_process and step % self.train_config.checkpoint_every == 0:
-                self._save_checkpoint(step)
 
             t0 = time.time()
             self.optimizer.zero_grad()
@@ -190,6 +189,11 @@ class SupervisedTrainer(BaseTrainer):
                 self._log(step, metrics)
                 _interval_t = 0.0
                 _interval_tokens = 0
+
+            # Save after the step so a checkpoint at step N reflects state through step N
+            # (resume from N+1 picks up correctly).
+            if self.master_process and step % self.train_config.checkpoint_every == 0:
+                self._save_checkpoint(step)
 
         last_step = self.train_config.max_steps - 1
         if last_step % self.train_config.eval_loss.every != 0:
@@ -287,23 +291,13 @@ class SupervisedTrainer(BaseTrainer):
             }
         return {}
 
-    def _save_checkpoint(self, step: int, keep_last: int = 3) -> None:
-        self.train_config.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        path = self.train_config.checkpoint_dir / f"ckpt_{step:06d}.pt"
-        obj = {
-            "step": step,
-            "model_dict": self.raw_model.state_dict(),
-            "optimizer_dict": self.optimizer.state_dict(),
-            "model_config": self.raw_model.config,
-            "train_config": self.train_config,
-        }
-        torch.save(obj, path)
-        logger.info(f"Saved checkpoint to {path}")
-
-        checkpoints = sorted(self.train_config.checkpoint_dir.glob("ckpt_*.pt"))
-        for old in checkpoints[:-keep_last]:
-            old.unlink()
-            logger.info(f"Deleted old checkpoint {old}")
+    def _save_checkpoint(self, step: int) -> None:
+        self._write_checkpoint(
+            step,
+            self.raw_model,
+            self.optimizer,
+            extra={"train_config": self.train_config},
+        )
 
     def _log(
         self,

@@ -15,6 +15,10 @@
         "microbatch_size": 8,
         "eval_every": 25,
         "eval_n_prompts": 32,
+        "checkpoint_dir": "checkpoints/rl/countdown",
+        "checkpoint_every": 100,
+        "resume_from": null,
+        "resume_weights_only": false,
         "log_every": 1,
         "wandb_project": "saffron",
         "optimizer": {

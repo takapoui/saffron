@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from pathlib import Path
 from typing import Any, cast
 
 import torch
@@ -22,12 +23,13 @@ class BaseTrainer:
     helpers for bells and whistles — it does not orchestrate.
     """
 
-    def __init__(self, run_config: RunConfig) -> None:
+    def __init__(self, run_config: RunConfig, *, checkpoint_dir: Path | None = None) -> None:
         self.run_config = run_config
         self.master_process = run_config.ddp_rank == 0
         self._train_start_time = time.time()
         self.use_wandb = False
         self._sample_rows: list[list[Any]] = []
+        self.checkpoint_dir = checkpoint_dir
 
     def _prepare_model(self, model: BaseModel) -> BaseModel:
         """Move to device and (optionally) torch.compile."""
@@ -112,3 +114,38 @@ class BaseTrainer:
     def _finish_wandb(self) -> None:
         if self.use_wandb:
             wandb.finish()
+
+    def _write_checkpoint(
+        self,
+        step: int,
+        model: BaseModel,
+        optimizer: torch.optim.Optimizer,
+        *,
+        extra: dict[str, Any] | None = None,
+        keep_last: int = 3,
+    ) -> None:
+        """Write checkpoint and prune older ones. Caller passes config-specific extras."""
+        assert self.checkpoint_dir is not None, "checkpoint_dir not configured on BaseTrainer"
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        path = self.checkpoint_dir / f"ckpt_{step:06d}.pt"
+        payload: dict[str, Any] = {
+            "step": step,
+            "model_dict": model.state_dict(),
+            "optimizer_dict": optimizer.state_dict(),
+            "model_config": model.config,
+        }
+        if extra:
+            payload.update(extra)
+        torch.save(payload, path)
+        logger.info(f"Saved checkpoint to {path}")
+
+        checkpoints = sorted(self.checkpoint_dir.glob("ckpt_*.pt"))
+        for old in checkpoints[:-keep_last]:
+            old.unlink()
+            logger.info(f"Deleted old checkpoint {old}")
+
+    def _load_checkpoint(self, path: Path) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            torch.load(path, weights_only=False, map_location=self.run_config.device),
+        )

@@ -114,6 +114,12 @@ class RLConfig:
     eval_every: int | None
     eval_n_prompts: int
 
+    # checkpointing
+    checkpoint_dir: Path
+    checkpoint_every: int
+    resume_from: Path | None
+    resume_weights_only: bool
+
     # logging
     log_every: int
     wandb_project: str | None
@@ -133,6 +139,10 @@ class RLConfig:
             microbatch_size=d["microbatch_size"],
             eval_every=d["eval_every"],
             eval_n_prompts=d["eval_n_prompts"],
+            checkpoint_dir=Path(d["checkpoint_dir"]),
+            checkpoint_every=d["checkpoint_every"],
+            resume_from=Path(d["resume_from"]) if d.get("resume_from") is not None else None,
+            resume_weights_only=d.get("resume_weights_only", False),
             log_every=d["log_every"],
             wandb_project=d["wandb_project"],
         )

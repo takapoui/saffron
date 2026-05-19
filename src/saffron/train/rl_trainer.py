@@ -33,14 +33,15 @@ class RLTrainer(BaseTrainer):
         rl_config: RLConfig,
         run_config: RunConfig,
     ) -> None:
-        super().__init__(run_config)
+        super().__init__(run_config, checkpoint_dir=rl_config.checkpoint_dir)
         if run_config.use_ddp:
             raise ValueError("RLTrainer does not support DDP yet")
 
         self.tokenizer = model.tokenizer
         self._validate_tokenizer_match(self.tokenizer, train_loader.tokenizer)
 
-        self.model = self._prepare_model(model)
+        self.raw_model = self._prepare_model(model)
+        self.model = self.raw_model  # DDP wrap point when RL learns DDP
         self.ref_model = self._prepare_frozen_model(ref_model)
 
         self.optimizer = optimizer
@@ -50,6 +51,19 @@ class RLTrainer(BaseTrainer):
 
         self.step = 0
         self._rng = np.random.default_rng(42)
+
+        resume_from = rl_config.resume_from
+        if resume_from is not None:
+            checkpoint = self._load_checkpoint(resume_from)
+            self.raw_model.load_state_dict(checkpoint["model_dict"])
+            if rl_config.resume_weights_only:
+                logger.info("Loaded weights from %s (weights only, step reset to 0).", resume_from)
+            else:
+                self.optimizer.load_state_dict(checkpoint["optimizer_dict"])
+                self.step = checkpoint["step"] + 1
+                if "rng_state" in checkpoint:
+                    self._rng.bit_generator.state = checkpoint["rng_state"]
+                logger.info("Resumed from %s (step %d, rng restored).", resume_from, self.step)
 
         self._init_wandb(rl_config.wandb_project, dataclasses.asdict(rl_config))
 
@@ -64,10 +78,28 @@ class RLTrainer(BaseTrainer):
             metrics = self._step()
             if step % self.rl_config.log_every == 0:
                 self._log(step, metrics)
-        # Final eval at end so the last checkpoint has a corresponding eval point.
+            # Save after _step so checkpoint at step N reflects state through step N
+            # (resume from N+1 picks up correctly).
+            if self.master_process and step % self.rl_config.checkpoint_every == 0:
+                self._save_checkpoint(step)
+        # Final eval and checkpoint at end so the last checkpoint has a corresponding eval point.
+        last_step = self.rl_config.num_steps
         if self.rl_config.eval_every is not None:
-            self._log(self.rl_config.num_steps, self._evaluate())
+            self._log(last_step, self._evaluate())
+        if self.master_process and (last_step - 1) % self.rl_config.checkpoint_every != 0:
+            self._save_checkpoint(last_step - 1)
         self._finish_wandb()
+
+    def _save_checkpoint(self, step: int) -> None:
+        self._write_checkpoint(
+            step,
+            self.raw_model,
+            self.optimizer,
+            extra={
+                "rl_config": self.rl_config,
+                "rng_state": self._rng.bit_generator.state,
+            },
+        )
 
     def _should_eval(self, step: int) -> bool:
         return self.rl_config.eval_every is not None and step % self.rl_config.eval_every == 0
