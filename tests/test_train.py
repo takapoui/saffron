@@ -47,6 +47,7 @@ def _train_config(
         schedule=ScheduleConfig(warmup_steps=1, min_lr_ratio=0.1),
         grad_clip=1.0,
         total_batch_size=total_batch_size,
+        compile_model=False,
         eval_loss=EvalLossConfig(every=eval_loss_every, steps=1),
         eval_generate=EvalGenerateConfig(
             every=None, prompt="hi", samples=1, max_tokens=5, use_chat_template=False

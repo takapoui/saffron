@@ -41,6 +41,8 @@ def _rl_config(
     return RLConfig(
         num_steps=num_steps,
         grad_clip=1.0,
+        compile_model=False,
+        compile_ref_model=False,
         optimizer=OptimizerConfig(lr=1e-4, weight_decay=0.0),
         n_prompts_per_batch=1,
         group_size=1,

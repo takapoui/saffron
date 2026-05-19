@@ -40,9 +40,9 @@ class RLTrainer(BaseTrainer):
         self.tokenizer = model.tokenizer
         self._validate_tokenizer_match(self.tokenizer, train_loader.tokenizer)
 
-        self.raw_model = self._prepare_model(model)
+        self.raw_model = self._prepare_model(model, compile=rl_config.compile_model)
         self.model = self.raw_model  # DDP wrap point when RL learns DDP
-        self.ref_model = self._prepare_frozen_model(ref_model)
+        self.ref_model = self._prepare_frozen_model(ref_model, compile=rl_config.compile_ref_model)
 
         self.optimizer = optimizer
         self.train_loader = train_loader

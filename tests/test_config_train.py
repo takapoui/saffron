@@ -18,6 +18,7 @@ def test_train_config_parses_nested_eval_blocks(tmp_path: Path) -> None:
         "schedule": {"warmup_steps": 20, "min_lr_ratio": 0.1},
         "grad_clip": 1.0,
         "total_batch_size": 1024,
+        "compile_model": False,
         "eval_loss": {"every": 50, "steps": 10},
         "eval_generate": {
             "every": 100,

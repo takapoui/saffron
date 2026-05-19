@@ -31,20 +31,20 @@ class BaseTrainer:
         self._sample_rows: list[list[Any]] = []
         self.checkpoint_dir = checkpoint_dir
 
-    def _prepare_model(self, model: BaseModel) -> BaseModel:
+    def _prepare_model(self, model: BaseModel, *, compile: bool) -> BaseModel:
         """Move to device and (optionally) torch.compile."""
         model = model.to(self.run_config.device)
-        if model.supports_compile(self.run_config.device_type):
+        if compile and model.supports_compile(self.run_config.device_type):
             model = cast(BaseModel, torch.compile(model))  # pyright: ignore[reportUnknownMemberType]
         return model
 
-    def _prepare_frozen_model(self, model: BaseModel) -> BaseModel:
+    def _prepare_frozen_model(self, model: BaseModel, *, compile: bool) -> BaseModel:
         """Move to device, eval(), requires_grad_(False), and (optionally) torch.compile."""
         model = model.to(self.run_config.device)
         model.eval()
         for p in model.parameters():
             p.requires_grad = False
-        if model.supports_compile(self.run_config.device_type):
+        if compile and model.supports_compile(self.run_config.device_type):
             model = cast(BaseModel, torch.compile(model))  # pyright: ignore[reportUnknownMemberType]
         return model
 

@@ -35,7 +35,7 @@ class SupervisedTrainer(BaseTrainer):
         self.tokenizer = model.tokenizer
         self._validate_tokenizer_match(self.tokenizer, train_loader.tokenizer)
 
-        self.raw_model = self._prepare_model(model)
+        self.raw_model = self._prepare_model(model, compile=train_config.compile_model)
         if run_config.use_ddp:
             self.model = DistributedDataParallel(
                 self.raw_model, device_ids=[run_config.ddp_local_rank]

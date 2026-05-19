@@ -36,6 +36,7 @@ class TrainConfig:
     max_steps: int
     grad_clip: float
     total_batch_size: int
+    compile_model: bool
 
     # optimizer + schedule
     optimizer: OptimizerConfig
@@ -63,6 +64,7 @@ class TrainConfig:
             max_steps=d["max_steps"],
             grad_clip=d["grad_clip"],
             total_batch_size=d["total_batch_size"],
+            compile_model=d["compile_model"],
             optimizer=OptimizerConfig.from_dict(d["optimizer"]),
             schedule=ScheduleConfig.from_dict(d["schedule"]),
             eval_loss=EvalLossConfig.from_dict(d["eval_loss"]),
@@ -93,6 +95,8 @@ class RLConfig:
     # training loop
     num_steps: int
     grad_clip: float
+    compile_model: bool
+    compile_ref_model: bool
 
     # optimizer
     optimizer: OptimizerConfig
@@ -129,6 +133,8 @@ class RLConfig:
         return cls(
             num_steps=d["num_steps"],
             grad_clip=d["grad_clip"],
+            compile_model=d["compile_model"],
+            compile_ref_model=d["compile_ref_model"],
             optimizer=OptimizerConfig.from_dict(d["optimizer"]),
             n_prompts_per_batch=d["n_prompts_per_batch"],
             group_size=d["group_size"],

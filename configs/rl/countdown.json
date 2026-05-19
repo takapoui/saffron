@@ -6,6 +6,8 @@
     "train": {
         "num_steps": 1000,
         "grad_clip": 1.0,
+        "compile_model": false,
+        "compile_ref_model": false,
         "n_prompts_per_batch": 8,
         "group_size": 4,
         "max_new_tokens": 500,
