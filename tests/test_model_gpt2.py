@@ -97,6 +97,12 @@ def test_generate_batch(model: GPT2, config: GPT2Config) -> None:
     assert out.shape == (3, 13)
 
 
+def test_generate_top_p_raises_for_native_models(model: GPT2, config: GPT2Config) -> None:
+    idx = torch.randint(0, config.vocab_size, (1, 5))
+    with pytest.raises(ValueError, match="top_p"):
+        model.generate(idx, max_new_tokens=8, top_p=0.9)
+
+
 # --- base_model.generate: per-row stop ---
 
 

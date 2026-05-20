@@ -12,6 +12,8 @@
         "group_size": 4,
         "max_new_tokens": 500,
         "temperature": 1.0,
+        "top_k": 50,
+        "top_p": 1.0,
         "clip_eps": 0.2,
         "kl_coef": 0.005,
         "microbatch_size": 8,

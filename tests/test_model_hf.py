@@ -36,6 +36,7 @@ def test_hf_generate_passes_stop_tokens_and_attention_mask() -> None:
         max_new_tokens=3,
         temperature=1.0,
         top_k=50,
+        top_p=0.9,
         attention_mask=attention_mask,
     )
 
@@ -46,4 +47,5 @@ def test_hf_generate_passes_stop_tokens_and_attention_mask() -> None:
     assert torch.equal(kw["attention_mask"], attention_mask)
     assert kw["eos_token_id"] == stop_ids
     assert kw["pad_token_id"] == stop_ids[0]
+    assert kw["top_p"] == 0.9
     assert out is expected_out

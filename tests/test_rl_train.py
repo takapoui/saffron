@@ -59,6 +59,8 @@ def _rl_config(
         group_size=1,
         max_new_tokens=4,
         temperature=1.0,
+        top_k=50,
+        top_p=1.0,
         clip_eps=0.2,
         kl_coef=0.0,
         microbatch_size=1,

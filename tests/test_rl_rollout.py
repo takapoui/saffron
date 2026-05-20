@@ -45,6 +45,8 @@ class _FakeModel:
         idx: torch.Tensor,
         max_new_tokens: int,
         temperature: float,
+        top_k: int,
+        top_p: float,
         attention_mask: torch.Tensor,
     ) -> torch.Tensor:
         self.last_idx = idx
@@ -94,6 +96,8 @@ def test_returns_rollout_batch_with_expected_fields() -> None:
         group_size=3,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
 
     assert isinstance(rb, RolloutBatch)
@@ -115,6 +119,8 @@ def test_repeat_interleave_layout_passed_to_generate() -> None:
         group_size=3,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
 
     assert model.last_idx is not None
@@ -141,6 +147,8 @@ def test_response_lens_match_first_stop_position() -> None:
         group_size=3,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
     # Expected from the running example (positions of first 9 in completion,
     # +1 to include EOS itself; 5 if no EOS).
@@ -157,6 +165,8 @@ def test_response_mask_matches_response_lens_via_sum() -> None:
         group_size=3,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
     assert rb.response_mask.sum(dim=-1).tolist() == rb.response_lens  # pyright: ignore[reportUnknownMemberType]
 
@@ -171,6 +181,8 @@ def test_response_mask_zero_on_prompt_positions() -> None:
         group_size=3,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
     assert torch.all(rb.response_mask[:, :4] == 0)
 
@@ -185,6 +197,8 @@ def test_attention_mask_includes_eos_excludes_padding() -> None:
         group_size=3,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
     expected = torch.tensor(
         [
@@ -209,6 +223,8 @@ def test_completion_texts_exclude_stop_tokens() -> None:
         group_size=3,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
     # Our fake decode hyphen-joins ids; "9" appearing in text would mean
     # the stop token leaked through.
@@ -227,6 +243,8 @@ def test_completion_texts_have_correct_content() -> None:
         group_size=3,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
     # Built from the running example: completion tokens with stop (9) stripped,
     # hyphen-joined by our fake decoder.
@@ -265,6 +283,8 @@ def test_boundary_is_first_stop_token_not_pad() -> None:
         group_size=1,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
 
     # Row 0: position 5 (the 9) is the stop — valid through there, 0 after.
@@ -312,6 +332,8 @@ def test_left_padded_prompts_preserve_mask_in_prefix() -> None:
         group_size=1,
         max_new_tokens=3,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
 
     expected_attn = torch.tensor(
@@ -333,6 +355,8 @@ def test_input_ids_is_the_full_generated_sequence() -> None:
         group_size=3,
         max_new_tokens=5,
         temperature=1.0,
+        top_k=0,
+        top_p=1.0,
     )
     # The fake model returned a fixed tensor; rb.input_ids must equal it.
     assert torch.equal(rb.input_ids, model._generated)  # type: ignore[reportPrivateUsage]

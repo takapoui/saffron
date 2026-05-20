@@ -22,6 +22,8 @@ def rollout(
     group_size: int,
     max_new_tokens: int,
     temperature: float,
+    top_k: int,  # 0 (or negative) disables top-k filtering
+    top_p: float,  # 1.0 disables nucleus filtering
 ) -> RolloutBatch:
 
     idx = prompt_input_ids.repeat_interleave(group_size, dim=0)
@@ -34,6 +36,8 @@ def rollout(
         idx=idx,
         max_new_tokens=max_new_tokens,
         temperature=temperature,
+        top_k=top_k,
+        top_p=top_p,
         attention_mask=attn,
     )  # (B*G, T_full)
 

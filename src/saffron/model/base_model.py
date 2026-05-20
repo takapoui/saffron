@@ -62,8 +62,11 @@ class BaseModel(nn.Module, ABC):
         max_new_tokens: int,
         temperature: float = 1,
         top_k: int = 50,
+        top_p: float = 1.0,
         attention_mask: torch.Tensor | None = None,  # TODO: native models don't support, HF does
     ) -> torch.Tensor:
+        if top_p != 1.0:
+            raise ValueError("Native model.generate does not support top_p yet.")
         original_device = idx.device
         # MPS has numerical issues with autoregressive generation — run on CPU
         if original_device.type == "mps":

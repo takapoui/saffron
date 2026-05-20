@@ -64,6 +64,8 @@ class RLTrainConfig:
     group_size: int
     max_new_tokens: int
     temperature: float
+    top_k: int
+    top_p: float
 
     # loss
     clip_eps: float
@@ -97,6 +99,8 @@ class RLTrainConfig:
             group_size=d["group_size"],
             max_new_tokens=d["max_new_tokens"],
             temperature=d["temperature"],
+            top_k=d["top_k"],
+            top_p=d["top_p"],
             clip_eps=d["clip_eps"],
             kl_coef=d["kl_coef"],
             microbatch_size=d["microbatch_size"],

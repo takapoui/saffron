@@ -130,6 +130,8 @@ class RLTrainer(BaseTrainer):
             group_size=cfg.group_size,
             max_new_tokens=cfg.max_new_tokens,
             temperature=cfg.temperature,
+            top_k=cfg.top_k,
+            top_p=cfg.top_p,
         )
 
         expanded_samples = [s for s in batch.samples for _ in range(cfg.group_size)]
@@ -257,6 +259,8 @@ class RLTrainer(BaseTrainer):
                 group_size=cfg.group_size,
                 max_new_tokens=cfg.max_new_tokens,
                 temperature=cfg.temperature,
+                top_k=cfg.top_k,
+                top_p=cfg.top_p,
             )
 
             expanded_samples = [s for s in batch.samples for _ in range(cfg.group_size)]
