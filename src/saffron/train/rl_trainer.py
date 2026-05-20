@@ -146,9 +146,12 @@ class RLTrainer(BaseTrainer):
         T_pred = rb.input_ids.shape[1] - 1
         per_completion = torch.tensor([al[0] for al in advs_lists], dtype=torch.float32)
         advantages = per_completion.unsqueeze(-1).expand(-1, T_pred).to(device)
+        zero_advantage_ratio = (per_completion.abs() < 1e-6).float().mean().item()
 
         total_rows = rb.input_ids.shape[0]
         mb_size = max(1, min(cfg.microbatch_size, total_rows))
+        # Shared full-batch denominator so microbatches accumulate the exact full-batch gradient.
+        total_response_len = rb.response_mask[:, 1:].sum().clamp(min=1)
         with torch.no_grad():
             old_lp = torch.cat(
                 [
@@ -180,8 +183,6 @@ class RLTrainer(BaseTrainer):
         self.optimizer.zero_grad()
         for start in range(0, total_rows, mb_size):
             end = min(start + mb_size, total_rows)
-            k = end - start
-            weight = k / total_rows  # so accumulated grad ≈ full-batch grad
 
             new_lp_chunk = compute_token_log_probs(
                 self.model,
@@ -197,18 +198,23 @@ class RLTrainer(BaseTrainer):
                 response_mask=rb.response_mask[start:end, 1:],
                 clip_eps=cfg.clip_eps,
                 kl_coef=cfg.kl_coef,
+                total_response_len=total_response_len,
             )
             assert torch.isfinite(loss_chunk), (
                 f"non-finite loss at step {self.step}, microbatch [{start}:{end}]: "
                 f"{loss_chunk.item()}"
             )
 
-            (loss_chunk * weight).backward()  # type: ignore[reportUnknownMemberType]
-            loss_value += loss_chunk.item() * weight
+            # Each microbatch's loss is already normalized by the full-batch total_response_len,
+            # so backward() accumulates the exact full-batch gradient without extra weighting.
+            loss_chunk.backward()  # type: ignore[reportUnknownMemberType]
+            loss_value += loss_chunk.item()
             for key, val in metrics_chunk.items():
-                loss_metrics[key] = loss_metrics.get(key, 0.0) + val * weight
+                loss_metrics[key] = loss_metrics.get(key, 0.0) + val
 
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=cfg.grad_clip)
+        grad_norm = torch.nn.utils.clip_grad_norm_(
+            self.model.parameters(), max_norm=cfg.grad_clip
+        ).item()
         self.optimizer.step()  # type: ignore[reportUnknownMemberType]
         self.optimizer.zero_grad()
 
@@ -233,6 +239,8 @@ class RLTrainer(BaseTrainer):
             "avg_response_len": avg_response_len,
             "truncation_rate": truncation_rate,
             "step_time": dt,
+            "zero_advantage_ratio": zero_advantage_ratio,
+            "grad_norm": grad_norm,
             **loss_metrics,
         }
 
