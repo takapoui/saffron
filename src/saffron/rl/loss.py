@@ -9,6 +9,7 @@ def compute_grpo_loss(
     response_mask: torch.Tensor,  # (B, T-1) — 1 on completion tokens, 0 elsewhere
     clip_eps: float,  # ε in min(r·A, clip(r, 1±ε)·A); paper uses 0.2
     kl_coef: float,  # β on the KL penalty; paper uses ~1e-3
+    total_response_len: torch.Tensor,  # scalar — full-batch token count (shared across mbs)
 ) -> tuple[torch.Tensor, dict[str, float]]:  # (scalar_loss, metrics)
 
     kl_log_diff = ref_log_probs - new_log_probs
@@ -20,18 +21,22 @@ def compute_grpo_loss(
 
     policy_loss = -torch.minimum(surrogate_1, surrogate_2) * response_mask
 
-    denom = response_mask.sum(-1).clamp(min=1)
-    seq_loss = (policy_loss + kl_coef * kl_penalty).sum(-1) / denom
-    loss = seq_loss.mean()
+    # Per-token loss: every response token weighted equally across the full batch.
+    # total_response_len is computed once over the entire batch and passed in, so each
+    # microbatch contributes its sum to a shared denominator. Backward() across microbatches
+    # then accumulates exactly the full-batch gradient.
+    loss = (policy_loss + kl_coef * kl_penalty).sum() / total_response_len
 
     with torch.no_grad():
-        per_completion_adv = (advantages * response_mask).sum(-1) / denom
+        # All per-token metrics divide by the same full-batch total so they aggregate
+        # cleanly: summing across microbatches gives the correct full-batch values.
+        clip_active = (surrogate_2 < surrogate_1).float() * response_mask
         metrics = {
-            "policy_loss": (policy_loss.sum(-1) / denom).mean().item(),
-            "kl": (kl_penalty.sum(-1) / denom).mean().item(),
-            "zero_advantage_ratio": (per_completion_adv.abs() < 1e-6).float().mean().item(),
+            "policy_loss": policy_loss.sum().item() / total_response_len.item(),
+            "kl": kl_penalty.sum().item() / total_response_len.item(),
             "approximate_entropy": (
-                (-new_log_probs * response_mask).sum() / response_mask.sum().clamp(min=1)
-            ).item(),
+                (-new_log_probs * response_mask).sum().item() / total_response_len.item()
+            ),
+            "clip_fraction": clip_active.sum().item() / total_response_len.item(),
         }
     return loss, metrics
