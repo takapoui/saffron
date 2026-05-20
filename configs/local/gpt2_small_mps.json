@@ -11,6 +11,7 @@
         "max_steps": 1000,
         "grad_clip": 1.0,
         "total_batch_size": 8192,
+        "compile_model": false,
         "eval_loss": {
             "every": 50,
             "steps": 20
@@ -32,12 +33,19 @@
         "checkpoint_dir": "checkpoints/gpt2_small_mps",
         "resume_from": null,
         "log_every": 1,
-        "wandb_project": null,
-        "optimizer": {
-            "lr": 6e-4,
-            "weight_decay": 0.1
-        },
+        "wandb_project": null
+    },
+    "optimizer": {
+        "type": "adamw",
+        "lr": 0.0006,
+        "weight_decay": 0.1,
+        "betas": [
+            0.9,
+            0.95
+        ],
+        "eps": 1e-08,
         "schedule": {
+            "type": "cosine",
             "warmup_steps": 100,
             "min_lr_ratio": 0.1
         }

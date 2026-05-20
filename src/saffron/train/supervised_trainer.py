@@ -9,14 +9,14 @@ from typing import Any, cast
 import torch
 from torch.nn.parallel import DistributedDataParallel
 
-from ..config import RunConfig, TrainConfig
 from ..data import BaseDataLoader
 from ..data.sft_dataloader import SFTDataLoader
 from ..eval import evaluate_generate, evaluate_gsm8k, evaluate_hellaswag
-from ..helpers import get_peak_flops
+from ..helpers import RunConfig, get_peak_flops
 from ..model import BaseModel
-from ..optim import get_lr_cosine
+from ..optim import OptimizerConfig, get_lr
 from .base_trainer import BaseTrainer
+from .config import SupervisedTrainConfig
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +25,11 @@ class SupervisedTrainer(BaseTrainer):
     def __init__(
         self,
         model: BaseModel,
-        optimizer: torch.optim.AdamW,
+        optimizer: torch.optim.Optimizer,
+        optimizer_config: OptimizerConfig,
         train_loader: BaseDataLoader,
         val_loader: BaseDataLoader,
-        train_config: TrainConfig,
+        train_config: SupervisedTrainConfig,
         run_config: RunConfig,
     ) -> None:
         super().__init__(run_config, checkpoint_dir=train_config.checkpoint_dir)
@@ -44,6 +45,7 @@ class SupervisedTrainer(BaseTrainer):
             self.model = self.raw_model
 
         self.optimizer = optimizer
+        self.optimizer_config = optimizer_config
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.train_config = train_config
@@ -84,7 +86,7 @@ class SupervisedTrainer(BaseTrainer):
 
         self._init_wandb(
             train_config.wandb_project,
-            dataclasses.asdict(train_config),
+            {**dataclasses.asdict(train_config), **dataclasses.asdict(optimizer_config)},
             step_metric="tokens_seen",
         )
 
@@ -92,6 +94,7 @@ class SupervisedTrainer(BaseTrainer):
         self.model.train()
         _interval_t = 0.0
         _interval_tokens = 0
+        _interval_steps = 0
         for step in range(self.step, self.train_config.max_steps):
             if step % self.train_config.eval_loss.every == 0:
                 metrics = {"eval_loss": self._eval_loss()}
@@ -151,12 +154,7 @@ class SupervisedTrainer(BaseTrainer):
             norm = torch.nn.utils.clip_grad_norm_(
                 self.model.parameters(), self.train_config.grad_clip
             )
-            lr = get_lr_cosine(
-                step=step,
-                max_steps=self.train_config.max_steps,
-                max_lr=self.train_config.optimizer.lr,
-                config=self.train_config.schedule,
-            )
+            lr = get_lr(step, self.train_config.max_steps, self.optimizer_config)
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr
             self.optimizer.step()  # type: ignore[reportUnknownMemberType]
@@ -169,6 +167,7 @@ class SupervisedTrainer(BaseTrainer):
             self.tokens_seen += self.train_config.total_batch_size
             _interval_t += t1 - t0
             _interval_tokens += self.train_config.total_batch_size
+            _interval_steps += 1
             if step % self.train_config.log_every == 0:
                 tok_per_sec = _interval_tokens / _interval_t
                 mfu = (
@@ -178,7 +177,7 @@ class SupervisedTrainer(BaseTrainer):
                     / (self._device_peak_flops * self.run_config.ddp_world_size)
                 )
                 metrics = {
-                    "sec": _interval_t / self.train_config.log_every,
+                    "sec": _interval_t / _interval_steps,
                     "norm": norm.item(),
                     "lr": lr,
                     "loss": loss_accum,
@@ -189,6 +188,7 @@ class SupervisedTrainer(BaseTrainer):
                 self._log(step, metrics)
                 _interval_t = 0.0
                 _interval_tokens = 0
+                _interval_steps = 0
 
             # Save after the step so a checkpoint at step N reflects state through step N
             # (resume from N+1 picks up correctly).

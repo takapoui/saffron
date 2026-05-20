@@ -6,19 +6,19 @@ from pathlib import Path
 
 import torch
 
-from saffron.config import RLConfig
 from saffron.data import RLDataLoader
 from saffron.helpers import make_run_config, setup_file_logging
 from saffron.model import MODEL_REGISTRY, BaseConfig, BaseModel
-from saffron.optim import configure_adamw
-from saffron.train import RLTrainer
+from saffron.optim import OptimizerConfig, configure_optimizer
+from saffron.train import RLTrainConfig, RLTrainer
 
 torch.set_float32_matmul_precision("high")
 
 
 def main(
     model_config: BaseConfig,
-    rl_config: RLConfig,
+    rl_config: RLTrainConfig,
+    optimizer_config: OptimizerConfig,
     model_cls: type[BaseModel],
     data_root: Path,
 ) -> None:
@@ -34,15 +34,16 @@ def main(
         path=data_root / "val.jsonl",
         tokenizer=model.tokenizer,
     )
-    optimizer = configure_adamw(
+    optimizer = configure_optimizer(
         model=model,
-        config=rl_config.optimizer,
+        config=optimizer_config,
         device_type=run_config.device_type,
     )
     trainer = RLTrainer(
         model=model,
         ref_model=ref_model,
         optimizer=optimizer,
+        optimizer_config=optimizer_config,
         train_loader=train_loader,
         val_loader=val_loader,
         rl_config=rl_config,
@@ -65,12 +66,14 @@ if __name__ == "__main__":
     model_type = config["model"]["model_type"]
     model_cls = MODEL_REGISTRY[model_type]
     model_config = model_cls.config_class.from_dict(config["model"])
-    rl_config = RLConfig.from_dict(config["train"])
+    rl_config = RLTrainConfig.from_dict(config["train"])
+    optimizer_config = OptimizerConfig.from_dict(config["optimizer"])
     data_root = Path(config["data"]["data_root"])
 
     main(
         model_config=model_config,
         rl_config=rl_config,
+        optimizer_config=optimizer_config,
         model_cls=model_cls,
         data_root=data_root,
     )

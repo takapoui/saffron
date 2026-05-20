@@ -8,8 +8,7 @@ from typing import Any, cast
 import torch
 import wandb
 
-from ..config import RunConfig
-from ..helpers import format_metric_line, init_wandb
+from ..helpers import RunConfig, format_metric_line, init_wandb
 from ..model import BaseModel
 from ..tokenizer import Tokenizer
 

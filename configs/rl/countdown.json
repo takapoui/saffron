@@ -22,11 +22,18 @@
         "resume_from": null,
         "resume_weights_only": false,
         "log_every": 1,
-        "wandb_project": "saffron",
-        "optimizer": {
-            "lr": 5e-6,
-            "weight_decay": 0.0
-        }
+        "wandb_project": "saffron"
+    },
+    "optimizer": {
+        "type": "adamw",
+        "lr": 5e-06,
+        "weight_decay": 0.0,
+        "betas": [
+            0.9,
+            0.95
+        ],
+        "eps": 1e-08,
+        "schedule": {"type": "constant"}
     },
     "data": {
         "data_root": "data/rl/Qwen/Qwen2.5-1.5B/3num/countdown",

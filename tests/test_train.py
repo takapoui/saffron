@@ -9,10 +9,11 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 
-from saffron.config import OptimizerConfig, RunConfig, ScheduleConfig, TrainConfig
 from saffron.eval import EvalGenerateConfig, EvalGSM8KConfig, EvalHellaswagConfig, EvalLossConfig
+from saffron.helpers import RunConfig
 from saffron.model import GPT2, GPT2Config
-from saffron.train import SupervisedTrainer
+from saffron.optim import CosineScheduleConfig, OptimizerConfig
+from saffron.train import SupervisedTrainConfig, SupervisedTrainer
 
 # ---------------------------------------------------------------------------
 # Helpers shared across trainer tests
@@ -30,6 +31,17 @@ def _run_config() -> RunConfig:
     )
 
 
+def _optimizer_config() -> OptimizerConfig:
+    return OptimizerConfig(
+        optimizer_type="adamw",
+        lr=1e-4,
+        weight_decay=0.01,
+        betas=(0.9, 0.95),
+        eps=1e-8,
+        schedule=CosineScheduleConfig(warmup_steps=1, min_lr_ratio=0.1),
+    )
+
+
 def _train_config(
     tmp_path: Path,
     *,
@@ -40,11 +52,9 @@ def _train_config(
     resume_from: Path | None = None,
     resume_weights_only: bool = False,
     total_batch_size: int = 4,
-) -> TrainConfig:
-    return TrainConfig(
+) -> SupervisedTrainConfig:
+    return SupervisedTrainConfig(
         max_steps=max_steps,
-        optimizer=OptimizerConfig(lr=1e-4, weight_decay=0.01),
-        schedule=ScheduleConfig(warmup_steps=1, min_lr_ratio=0.1),
         grad_clip=1.0,
         total_batch_size=total_batch_size,
         compile_model=False,
@@ -105,16 +115,18 @@ class _FakeLoader:
 def _make_trainer(
     tmp_path: Path,
     model: GPT2,
-    cfg: TrainConfig,
+    cfg: SupervisedTrainConfig,
     train_loader: Any = None,
     val_loader: Any = None,
 ) -> SupervisedTrainer:
     train_loader = train_loader or _FakeLoader()
     val_loader = val_loader or _FakeLoader()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+    opt_cfg = _optimizer_config()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=opt_cfg.lr)
     return SupervisedTrainer(
         model=model,
         optimizer=optimizer,
+        optimizer_config=opt_cfg,
         train_loader=train_loader,
         val_loader=val_loader,
         train_config=cfg,

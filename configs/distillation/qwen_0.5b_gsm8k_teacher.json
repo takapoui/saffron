@@ -33,11 +33,19 @@
         "resume_from": null,
         "log_every": 10,
         "wandb_project": "saffron",
-        "optimizer": {
-            "lr": 2e-5,
-            "weight_decay": 0.01
-        },
+        "compile_model": false
+    },
+    "optimizer": {
+        "type": "adamw",
+        "lr": 2e-05,
+        "weight_decay": 0.01,
+        "betas": [
+            0.9,
+            0.95
+        ],
+        "eps": 1e-08,
         "schedule": {
+            "type": "cosine",
             "warmup_steps": 50,
             "min_lr_ratio": 0.1
         }

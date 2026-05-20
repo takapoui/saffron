@@ -1,4 +1,4 @@
-"""Tests for TrainConfig.from_dict() — nested eval-block parsing."""
+"""Tests for SupervisedTrainConfig.from_dict() — nested eval-block parsing."""
 
 from __future__ import annotations
 
@@ -7,15 +7,13 @@ from typing import Any
 
 import pytest
 
-from saffron.config import TrainConfig
 from saffron.eval import EvalGenerateConfig, EvalGSM8KConfig, EvalHellaswagConfig, EvalLossConfig
+from saffron.train import SupervisedTrainConfig
 
 
 def test_train_config_parses_nested_eval_blocks(tmp_path: Path) -> None:
     d: dict[str, Any] = {
         "max_steps": 200,
-        "optimizer": {"lr": 3e-4, "weight_decay": 0.1},
-        "schedule": {"warmup_steps": 20, "min_lr_ratio": 0.1},
         "grad_clip": 1.0,
         "total_batch_size": 1024,
         "compile_model": False,
@@ -38,7 +36,7 @@ def test_train_config_parses_nested_eval_blocks(tmp_path: Path) -> None:
         "wandb_project": None,
     }
 
-    cfg = TrainConfig.from_dict(d)
+    cfg = SupervisedTrainConfig.from_dict(d)
 
     assert isinstance(cfg.eval_loss, EvalLossConfig)
     assert cfg.eval_loss.every == 50

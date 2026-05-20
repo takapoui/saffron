@@ -3,19 +3,19 @@ import json
 
 import torch
 
-from saffron.config import TrainConfig
 from saffron.data import DataConfig, LoaderType, PretrainDataLoader, SFTDataLoader
 from saffron.helpers import make_run_config, setup_file_logging
 from saffron.model import MODEL_REGISTRY, BaseConfig, BaseModel
-from saffron.optim import configure_adamw
-from saffron.train import SupervisedTrainer
+from saffron.optim import OptimizerConfig, configure_optimizer
+from saffron.train import SupervisedTrainConfig, SupervisedTrainer
 
 torch.set_float32_matmul_precision("high")
 
 
 def main(
     model_config: BaseConfig,
-    train_config: TrainConfig,
+    train_config: SupervisedTrainConfig,
+    optimizer_config: OptimizerConfig,
     data_config: DataConfig,
     model_cls: type[BaseModel],
 ) -> None:
@@ -32,14 +32,15 @@ def main(
         run_config=run_config,
         split="val",
     )
-    optimizer = configure_adamw(
+    optimizer = configure_optimizer(
         model=model,
-        config=train_config.optimizer,
+        config=optimizer_config,
         device_type=run_config.device_type,
     )
     trainer = SupervisedTrainer(
         model=model,
         optimizer=optimizer,
+        optimizer_config=optimizer_config,
         train_loader=train_loader,
         val_loader=val_loader,
         train_config=train_config,
@@ -62,12 +63,14 @@ if __name__ == "__main__":
     model_type = config["model"]["model_type"]
     model_cls = MODEL_REGISTRY[model_type]
     model_config = model_cls.config_class.from_dict(config["model"])
-    train_config = TrainConfig.from_dict(config["train"])
+    train_config = SupervisedTrainConfig.from_dict(config["train"])
+    optimizer_config = OptimizerConfig.from_dict(config["optimizer"])
     data_config = DataConfig.from_dict(config["data"])
 
     main(
         model_config=model_config,
         train_config=train_config,
+        optimizer_config=optimizer_config,
         data_config=data_config,
         model_cls=model_cls,
     )

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from ..config import RunConfig
+from ..helpers import RunConfig
 from ..tokenizer import Tokenizer
 from .config import DataConfig
 

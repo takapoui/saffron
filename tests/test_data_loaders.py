@@ -10,9 +10,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from saffron.config import RunConfig
 from saffron.constants import LABEL_IGNORE_INDEX
 from saffron.data import DataConfig, LoaderType, PretrainDataLoader, SFTDataLoader
+from saffron.helpers import RunConfig
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

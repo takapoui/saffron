@@ -33,12 +33,19 @@
         "checkpoint_dir": "checkpoints/gpt2_small",
         "resume_from": null,
         "log_every": 10,
-        "wandb_project": "saffron",
-        "optimizer": {
-            "lr": 6e-4,
-            "weight_decay": 0.1
-        },
+        "wandb_project": "saffron"
+    },
+    "optimizer": {
+        "type": "adamw",
+        "lr": 0.0006,
+        "weight_decay": 0.1,
+        "betas": [
+            0.9,
+            0.95
+        ],
+        "eps": 1e-08,
         "schedule": {
+            "type": "cosine",
             "warmup_steps": 715,
             "min_lr_ratio": 0.1
         }

@@ -9,15 +9,17 @@ import time
 import numpy as np
 import torch
 
-from ..config import RLConfig, RunConfig
 from ..data import RLDataLoader
 from ..eval.rl.reward import compute_reward
+from ..helpers import RunConfig
 from ..model import BaseModel
+from ..optim import OptimizerConfig, get_lr
 from ..rl.advantage import compute_grpo_advantages
 from ..rl.logprobs import compute_token_log_probs
 from ..rl.loss import compute_grpo_loss
 from ..rl.rollout import rollout
 from .base_trainer import BaseTrainer
+from .config import RLTrainConfig
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +29,11 @@ class RLTrainer(BaseTrainer):
         self,
         model: BaseModel,
         ref_model: BaseModel,
-        optimizer: torch.optim.AdamW,
+        optimizer: torch.optim.Optimizer,
+        optimizer_config: OptimizerConfig,
         train_loader: RLDataLoader,
         val_loader: RLDataLoader,
-        rl_config: RLConfig,
+        rl_config: RLTrainConfig,
         run_config: RunConfig,
     ) -> None:
         super().__init__(run_config, checkpoint_dir=rl_config.checkpoint_dir)
@@ -45,6 +48,7 @@ class RLTrainer(BaseTrainer):
         self.ref_model = self._prepare_frozen_model(ref_model, compile=rl_config.compile_ref_model)
 
         self.optimizer = optimizer
+        self.optimizer_config = optimizer_config
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.rl_config = rl_config
@@ -65,7 +69,10 @@ class RLTrainer(BaseTrainer):
                     self._rng.bit_generator.state = checkpoint["rng_state"]
                 logger.info("Resumed from %s (step %d, rng restored).", resume_from, self.step)
 
-        self._init_wandb(rl_config.wandb_project, dataclasses.asdict(rl_config))
+        self._init_wandb(
+            rl_config.wandb_project,
+            {**dataclasses.asdict(rl_config), **dataclasses.asdict(optimizer_config)},
+        )
 
     def train(self) -> None:
         # Eval mode disables dropout so old_lp and new_lp_chunk see identical forwards
@@ -73,11 +80,14 @@ class RLTrainer(BaseTrainer):
         self.model.eval()
         for step in range(self.step, self.rl_config.num_steps):
             self.step = step
+            lr = get_lr(step, self.rl_config.num_steps, self.optimizer_config)
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr
             if self._should_eval(step):
                 self._log(step, self._evaluate())
             metrics = self._step()
             if step % self.rl_config.log_every == 0:
-                self._log(step, metrics)
+                self._log(step, {"lr": lr, **metrics})
             # Save after _step so checkpoint at step N reflects state through step N
             # (resume from N+1 picks up correctly).
             if self.master_process and step % self.rl_config.checkpoint_every == 0:

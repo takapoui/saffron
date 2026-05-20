@@ -14,10 +14,11 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 
-from saffron.config import OptimizerConfig, RLConfig, RunConfig
 from saffron.data import RLDataLoader
+from saffron.helpers import RunConfig
 from saffron.model import GPT2, GPT2Config
-from saffron.train import RLTrainer
+from saffron.optim import ConstantScheduleConfig, OptimizerConfig
+from saffron.train import RLTrainConfig, RLTrainer
 
 
 def _run_config() -> RunConfig:
@@ -31,19 +32,29 @@ def _run_config() -> RunConfig:
     )
 
 
+def _optimizer_config() -> OptimizerConfig:
+    return OptimizerConfig(
+        optimizer_type="adamw",
+        lr=1e-4,
+        weight_decay=0.0,
+        betas=(0.9, 0.95),
+        eps=1e-8,
+        schedule=ConstantScheduleConfig(),
+    )
+
+
 def _rl_config(
     tmp_path: Path,
     *,
     num_steps: int = 4,
     checkpoint_every: int = 2,
     resume_from: Path | None = None,
-) -> RLConfig:
-    return RLConfig(
+) -> RLTrainConfig:
+    return RLTrainConfig(
         num_steps=num_steps,
         grad_clip=1.0,
         compile_model=False,
         compile_ref_model=False,
-        optimizer=OptimizerConfig(lr=1e-4, weight_decay=0.0),
         n_prompts_per_batch=1,
         group_size=1,
         max_new_tokens=4,
@@ -92,13 +103,15 @@ class _FakeRLLoader:
 def _make_trainer(
     model: GPT2,
     ref_model: GPT2,
-    cfg: RLConfig,
+    cfg: RLTrainConfig,
 ) -> RLTrainer:
-    optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.optimizer.lr)
+    opt_cfg = _optimizer_config()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=opt_cfg.lr)
     return RLTrainer(
         model=model,
         ref_model=ref_model,
         optimizer=optimizer,
+        optimizer_config=opt_cfg,
         train_loader=cast(RLDataLoader, _FakeRLLoader()),
         val_loader=cast(RLDataLoader, _FakeRLLoader()),
         rl_config=cfg,

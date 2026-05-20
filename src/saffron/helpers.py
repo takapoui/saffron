@@ -1,5 +1,6 @@
 import logging
 import os
+from dataclasses import dataclass
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -8,7 +9,15 @@ from typing import Any
 import torch
 import wandb
 
-from .config import RunConfig
+
+@dataclass
+class RunConfig:
+    device: str
+    device_type: str
+    use_ddp: bool
+    ddp_rank: int
+    ddp_local_rank: int
+    ddp_world_size: int
 
 
 def setup_file_logging(prefix: str) -> None:

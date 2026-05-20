@@ -4,43 +4,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .eval import EvalGenerateConfig, EvalGSM8KConfig, EvalHellaswagConfig, EvalLossConfig
-from .model.config import GPT2Config as ModelConfig  # backward compat for old checkpoints
-
-__all__ = ["ModelConfig"]  # ensure unpickling finds it
+from ..eval import EvalGenerateConfig, EvalGSM8KConfig, EvalHellaswagConfig, EvalLossConfig
 
 
 @dataclass
-class OptimizerConfig:
-    lr: float
-    weight_decay: float
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> OptimizerConfig:
-        return cls(lr=d["lr"], weight_decay=d["weight_decay"])
-
-
-@dataclass
-class ScheduleConfig:
-    warmup_steps: int
-    min_lr_ratio: float
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> ScheduleConfig:
-        return cls(warmup_steps=d["warmup_steps"], min_lr_ratio=d["min_lr_ratio"])
-
-
-@dataclass
-class TrainConfig:
+class SupervisedTrainConfig:
     # training loop
     max_steps: int
     grad_clip: float
     total_batch_size: int
     compile_model: bool
-
-    # optimizer + schedule
-    optimizer: OptimizerConfig
-    schedule: ScheduleConfig
 
     # eval
     eval_loss: EvalLossConfig
@@ -52,21 +25,19 @@ class TrainConfig:
     checkpoint_dir: Path
     checkpoint_every: int
     resume_from: Path | None
-    resume_weights_only: bool  # load weights only, reset step/optimizer (for SFT from pretrain)
+    resume_weights_only: bool
 
     # logging
     log_every: int
     wandb_project: str | None
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> TrainConfig:
+    def from_dict(cls, d: dict[str, Any]) -> SupervisedTrainConfig:
         return cls(
             max_steps=d["max_steps"],
             grad_clip=d["grad_clip"],
             total_batch_size=d["total_batch_size"],
-            compile_model=d["compile_model"],
-            optimizer=OptimizerConfig.from_dict(d["optimizer"]),
-            schedule=ScheduleConfig.from_dict(d["schedule"]),
+            compile_model=d.get("compile_model", False),
             eval_loss=EvalLossConfig.from_dict(d["eval_loss"]),
             eval_generate=EvalGenerateConfig.from_dict(d["eval_generate"]),
             eval_hellaswag=EvalHellaswagConfig.from_dict(d["eval_hellaswag"]),
@@ -81,25 +52,12 @@ class TrainConfig:
 
 
 @dataclass
-class RunConfig:
-    device: str
-    device_type: str
-    use_ddp: bool
-    ddp_rank: int
-    ddp_local_rank: int
-    ddp_world_size: int
-
-
-@dataclass
-class RLConfig:
+class RLTrainConfig:
     # training loop
     num_steps: int
     grad_clip: float
     compile_model: bool
     compile_ref_model: bool
-
-    # optimizer
-    optimizer: OptimizerConfig
 
     # rollout
     n_prompts_per_batch: int
@@ -129,13 +87,12 @@ class RLConfig:
     wandb_project: str | None
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> RLConfig:
+    def from_dict(cls, d: dict[str, Any]) -> RLTrainConfig:
         return cls(
             num_steps=d["num_steps"],
             grad_clip=d["grad_clip"],
-            compile_model=d["compile_model"],
-            compile_ref_model=d["compile_ref_model"],
-            optimizer=OptimizerConfig.from_dict(d["optimizer"]),
+            compile_model=d.get("compile_model", False),
+            compile_ref_model=d.get("compile_ref_model", False),
             n_prompts_per_batch=d["n_prompts_per_batch"],
             group_size=d["group_size"],
             max_new_tokens=d["max_new_tokens"],
