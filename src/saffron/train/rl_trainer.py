@@ -284,7 +284,7 @@ class RLTrainer(BaseTrainer):
             # Log a few sample completions to a wandb table per eval round.
             if self.use_wandb:
                 sample_rng = np.random.default_rng(self.step)
-                indices: list[int] = sample_rng.choice(n, size=min(5, n), replace=False).tolist()
+                indices: list[int] = sample_rng.choice(n, size=min(100, n), replace=False).tolist()
                 for i in indices:
                     self._sample_rows.append(
                         [
