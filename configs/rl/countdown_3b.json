@@ -1,0 +1,56 @@
+{
+    "model": {
+        "model_type": "hf",
+        "hf_model_name": "Qwen/Qwen2.5-3B"
+    },
+    "train": {
+        "num_steps": 1000,
+        "grad_clip": 1.0,
+        "compile_model": false,
+        "compile_ref_model": false,
+        "n_prompts_per_batch": 16,
+        "group_size": 4,
+        "max_new_tokens": 1024,
+        "temperature": 1.0,
+        "top_k": 0,
+        "top_p": 0.999,
+        "clip_eps": 0.2,
+        "kl_coef": 0.001,
+        "microbatch_size": 8,
+        "eval_every": 25,
+        "eval_n_prompts": 32,
+        "checkpoint_dir": "checkpoints/rl/countdown_3b",
+        "checkpoint_every": 100,
+        "resume_from": null,
+        "resume_weights_only": false,
+        "log_every": 1,
+        "wandb_project": "saffron"
+    },
+    "optimizer": {
+        "type": "adamw",
+        "lr": 5e-06,
+        "weight_decay": 0.0,
+        "betas": [
+            0.9,
+            0.999
+        ],
+        "eps": 1e-08,
+        "schedule": {"type": "constant"}
+    },
+    "data": {
+        "data_root": "data/rl/Qwen/Qwen2.5-3B/all/countdown",
+        "tokenizer": "Qwen/Qwen2.5-3B"
+    },
+    "prep": {
+        "data_root": "data/rl/Qwen/Qwen2.5-3B/all/countdown",
+        "dataset": "Jiayi-Pan/Countdown-Tasks-3to4",
+        "name": "",
+        "tokenizer": "Qwen/Qwen2.5-3B",
+        "dataset_split": "train",
+        "system_prompt": "You are a helpful assistant. You first think about the reasoning process in the mind and then provide the user with the answer.",
+        "prompt_template": "Using the numbers {nums}, create an equation that equals {target}. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final equation and answer in <answer> </answer> tags, for example <answer>(1 + 2) / (3 * 5)</answer>.",
+        "assistant_prefill": "Let me solve this step by step.\n<think>",
+        "val_size": 500,
+        "num_operands": null
+    }
+}
