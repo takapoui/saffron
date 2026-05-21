@@ -3,6 +3,7 @@
 VENV := .venv
 PYTHON_VERSION := $(shell grep 'requires-python' pyproject.toml | sed 's/[^0-9]*\([0-9][0-9]*\.[0-9][0-9]*\).*/\1/')
 SYSTEM_PYTHON_VERSION := $(shell python3 --version 2>&1 | sed 's/Python \([0-9]*\.[0-9]*\).*/\1/')
+PYTHON_BIN := $(shell which python$(PYTHON_VERSION) 2>/dev/null || which python3)
 PYTHON := $(VENV)/bin/python
 UV := $(VENV)/bin/uv
 RUFF := $(PYTHON) -m ruff
@@ -30,7 +31,7 @@ setup-linux:
 	git config --global core.editor vim
 
 $(PYTHON):
-	python$(PYTHON_VERSION) -m venv $(VENV)
+	$(PYTHON_BIN) -m venv $(VENV)
 	$(VENV)/bin/pip install uv
 
 $(PYTHON)-system:

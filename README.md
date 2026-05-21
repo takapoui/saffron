@@ -25,6 +25,7 @@ The experiments below track the project's progress. Built as a personal learning
 | Experiment | Model | Task | Accuracy | Hardware |
 |---|---|---|---|---|
 | [004 — GRPO on Countdown](experiments/004_rl_grpo_qwen_1.5b_countdown.md) | Qwen2.5-1.5B base | Countdown 3-num | 47.66% | 1x A100 SXM4 40GB |
+| [005 — Reasoning emergence on Countdown](experiments/005_rl_grpo_qwen_3b_countdown.md) | Qwen2.5-3B base | Countdown 3+4-num | 38.28% | 1x GH200 96GB |
 
 Full details and training curves in [`experiments/`](experiments/).
 
@@ -110,6 +111,6 @@ make test         # run pytest
 
 [nanoGPT](https://github.com/karpathy/nanoGPT) / [nanochat](https://github.com/karpathy/nanochat): Karpathy's minimalism philosophy and self-contained GPT-2 implementation shaped saffron's style. The peak-FLOPs tables are borrowed from nanochat.
 
-[nano-aha-moment](https://github.com/McGill-NLP/nano-aha-moment) (McGill NLP): the GRPO training setup and Countdown task configuration in experiment 004 are directly inspired by their work.
+[nano-aha-moment](https://github.com/McGill-NLP/nano-aha-moment) (McGill NLP): the GRPO training setup and Countdown task configuration in experiments 004 and 005 are directly inspired by their work.
 
 Claude (Anthropic): helped with cumbersome work like writing tests, boilerplate, and some refactors.
