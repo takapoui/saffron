@@ -73,6 +73,31 @@ def test_forward_loss_ignores_label_ignore_index(model: GPT2, config: GPT2Config
     assert loss_all.item() != pytest.approx(loss_partial.item())  # type: ignore[reportUnknownMemberType]
 
 
+def test_attention_mask_ignores_padding(model: GPT2, config: GPT2Config) -> None:
+    """Masked padding (appended to the right) must not change the logits of the
+    real positions, since the model is causal and padding is masked out."""
+    torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
+    real_len = 6
+    idx = torch.randint(0, config.vocab_size, (1, real_len))
+
+    logits_base, _ = model(idx)
+
+    pad_len = 4
+    pad = torch.randint(0, config.vocab_size, (1, pad_len))
+    idx_padded = torch.cat([idx, pad], dim=1)
+    mask = torch.cat([torch.ones(1, real_len), torch.zeros(1, pad_len)], dim=1)
+    logits_padded, _ = model(idx_padded, attention_mask=mask)
+
+    torch.testing.assert_close(logits_padded[:, :real_len], logits_base)
+
+
+def test_attention_mask_wrong_shape_raises(model: GPT2, config: GPT2Config) -> None:
+    idx = torch.randint(0, config.vocab_size, (2, 10))
+    bad_mask = torch.ones(2, 10, 10)  # should be (B, T)
+    with pytest.raises(AssertionError):
+        model(idx, attention_mask=bad_mask)
+
+
 # --- generate ---
 
 
