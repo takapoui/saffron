@@ -158,6 +158,8 @@ class GPT2(BaseModel):
         if original_device.type == "mps":
             self.cpu()
             idx = idx.cpu()
+            if attention_mask is not None:
+                attention_mask = attention_mask.cpu()
 
         self.eval()
         try:
@@ -170,11 +172,28 @@ class GPT2(BaseModel):
                 ),
                 dim=1,
             )
+            # extend the prompt mask with 1s for generated positions (always real tokens)
+            full_mask = None
+            if attention_mask is not None:
+                assert attention_mask.shape == idx.shape
+                full_mask = torch.cat(
+                    (
+                        attention_mask,
+                        torch.ones(
+                            (idx.shape[0], max_new_tokens),
+                            dtype=attention_mask.dtype,
+                            device=idx.device,
+                        ),
+                    ),
+                    dim=1,
+                )
             finished = torch.zeros(idx.shape[0], dtype=torch.bool, device=idx.device)
             pad_token_id = self.tokenizer.pad_token_id
             stop_token_ids = self.tokenizer.stop_token_ids
             for col in range(idx.shape[1], output.shape[1]):
-                logits, _ = self(output[:, max(0, col - self.config.block_size) : col])
+                start = max(0, col - self.config.block_size)
+                window_mask = full_mask[:, start:col] if full_mask is not None else None
+                logits, _ = self(output[:, start:col], attention_mask=window_mask)
                 logits = logits[:, -1, :] / temperature
                 probs = F.softmax(logits, dim=-1)
 
