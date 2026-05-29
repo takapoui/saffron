@@ -107,6 +107,20 @@ def test_generate_output_length(model: GPT2, config: GPT2Config) -> None:
     assert out.shape == (1, 15)  # 5 prompt + 10 generated
 
 
+def test_generate_accepts_attention_mask(model: GPT2, config: GPT2Config) -> None:
+    idx = torch.randint(0, config.vocab_size, (2, 5))
+    mask = torch.ones_like(idx)
+    out = model.generate(idx, max_new_tokens=8, attention_mask=mask)
+    assert out.shape == (2, 13)  # 5 prompt + 8 generated
+
+
+def test_generate_wrong_mask_shape_raises(model: GPT2, config: GPT2Config) -> None:
+    idx = torch.randint(0, config.vocab_size, (2, 5))
+    bad_mask = torch.ones(2, 5 + 8)  # full length, not prompt length
+    with pytest.raises(AssertionError):
+        model.generate(idx, max_new_tokens=8, attention_mask=bad_mask)
+
+
 def test_generate_stops_at_stop_token(model: GPT2, config: GPT2Config) -> None:
     stop_token = 0
     model._tokenizer = _fake_tokenizer([stop_token])  # pyright: ignore[reportPrivateUsage]
@@ -128,10 +142,10 @@ def test_generate_top_p_raises_for_native_models(model: GPT2, config: GPT2Config
         model.generate(idx, max_new_tokens=8, top_p=0.9)
 
 
-# --- base_model.generate: per-row stop ---
+# --- generate: per-row stop ---
 
 
-def test_base_model_generate_stops_finished_rows_only(config: GPT2Config) -> None:
+def test_generate_stops_finished_rows_only(config: GPT2Config) -> None:
     """When one row in a batch hits a stop token, subsequent tokens for that
     row must be clamped to the stop token ID while generation continues for
     rows that have not yet finished."""
