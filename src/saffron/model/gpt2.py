@@ -15,6 +15,8 @@ class ScaledLinear(nn.Linear):
 
 
 class CausalSelfAttention(nn.Module):
+    causal: torch.Tensor
+
     def __init__(self, config: GPT2Config) -> None:
         super().__init__()
         assert config.n_embd % config.n_head == 0
@@ -23,8 +25,12 @@ class CausalSelfAttention(nn.Module):
 
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
         self.c_proj = ScaledLinear(config.n_embd, config.n_embd)
+        self.register_buffer(
+            "causal",
+            torch.tril(torch.ones(config.block_size, config.block_size, dtype=torch.bool)),
+        )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         B, T, n_embd = x.shape
         assert n_embd == self.n_embd
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
@@ -32,7 +38,15 @@ class CausalSelfAttention(nn.Module):
         k = k.reshape(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
         q = q.reshape(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
         v = v.reshape(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
-        y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+
+        if attention_mask is not None:
+            # combine (B, T) padding mask with causal mask; can't use is_causal alongside attn_mask
+            assert attention_mask.shape == (B, T)
+            pad = attention_mask[:, None, None, :].bool()  # (B, 1, 1, T)
+            y = F.scaled_dot_product_attention(q, k, v, attn_mask=pad & self.causal[:T, :T])
+        else:
+            # use is_causal for performance
+            y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
         y = y.transpose(1, 2).contiguous().reshape(B, T, n_embd)
 
         y = self.c_proj(y)
@@ -61,8 +75,8 @@ class Block(nn.Module):
         self.ln_2 = nn.LayerNorm(config.n_embd)
         self.mlp = MLP(config)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.attn(self.ln_1(x))
+    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+        x = x + self.attn(self.ln_1(x), attention_mask)
         x = x + self.mlp(self.ln_2(x))
         return x
 
@@ -103,11 +117,6 @@ class GPT2(BaseModel):
         target: torch.Tensor | None = None,
         attention_mask: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
-
-        if attention_mask is not None:
-            # TODO
-            raise NotImplementedError
-
         B, T = idx.size()
         assert self.config.block_size >= T, "block size exhausted"
 
@@ -117,7 +126,7 @@ class GPT2(BaseModel):
         x = token_embd + pos_embd
 
         for block in self.h:
-            x = block(x)
+            x = block(x, attention_mask)
 
         x = self.ln_f(x)
         logits = self.lm_head(x)  # (B, T, vocab_size)
