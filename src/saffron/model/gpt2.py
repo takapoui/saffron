@@ -140,3 +140,57 @@ class GPT2(BaseModel):
             )
 
         return logits, loss
+
+    @torch.no_grad()
+    def generate(
+        self,
+        idx: torch.Tensor,  # already tokenized and on device
+        max_new_tokens: int,
+        temperature: float = 1,
+        top_k: int = 50,
+        top_p: float = 1.0,
+        attention_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if top_p != 1.0:
+            raise ValueError("Native model.generate does not support top_p yet.")
+        original_device = idx.device
+        # MPS has numerical issues with autoregressive generation — run on CPU
+        if original_device.type == "mps":
+            self.cpu()
+            idx = idx.cpu()
+
+        self.eval()
+        try:
+            output = torch.cat(
+                (
+                    idx,
+                    torch.zeros(
+                        (idx.shape[0], max_new_tokens), dtype=torch.long, device=idx.device
+                    ),
+                ),
+                dim=1,
+            )
+            finished = torch.zeros(idx.shape[0], dtype=torch.bool, device=idx.device)
+            pad_token_id = self.tokenizer.pad_token_id
+            stop_token_ids = self.tokenizer.stop_token_ids
+            for col in range(idx.shape[1], output.shape[1]):
+                logits, _ = self(output[:, max(0, col - self.config.block_size) : col])
+                logits = logits[:, -1, :] / temperature
+                probs = F.softmax(logits, dim=-1)
+
+                topk_probs, topk_indices = torch.topk(probs, k=top_k, dim=-1)
+                ix = torch.multinomial(topk_probs, num_samples=1)
+                next_token = torch.gather(topk_indices, -1, ix).squeeze(-1)
+                next_token = next_token.masked_fill(finished, pad_token_id)
+                output[:, col] = next_token
+                is_stop = torch.zeros_like(finished)
+                for tid in stop_token_ids:
+                    is_stop = is_stop | (next_token == tid)
+                finished = finished | is_stop
+                if finished.all():
+                    break
+        finally:
+            self.train()
+            if original_device.type == "mps":
+                self.to(original_device)
+        return output.to(original_device)
