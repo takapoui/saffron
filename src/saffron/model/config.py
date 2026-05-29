@@ -39,6 +39,22 @@ class GPT2Config(BaseConfig):
 
 
 @dataclass
+class NeoGPTConfig(BaseConfig):
+    n_layer: int
+    n_head: int
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> NeoGPTConfig:
+        return cls(
+            vocab_size=d["vocab_size"],
+            n_embd=d["n_embd"],
+            block_size=d["block_size"],
+            n_layer=d["n_layer"],
+            n_head=d["n_head"],
+        )
+
+
+@dataclass
 class HFConfig(BaseConfig):
     hf_model_name: str
 
