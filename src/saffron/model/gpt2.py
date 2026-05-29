@@ -119,10 +119,18 @@ class GPT2(BaseModel):
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         B, T = idx.size()
         assert self.config.block_size >= T, "block size exhausted"
+        if attention_mask is not None:
+            assert attention_mask.shape == (B, T)
 
         token_embd = self.wte(idx)  # (B, T, n_embd)
-        pos = torch.arange(0, T, dtype=torch.long, device=idx.device)
-        pos_embd = self.wpe(pos)  # (T, n_embd)
+        if attention_mask is not None:
+            # derive positions from the mask so (left-)padded tokens don't shift
+            # real tokens: position counts from 0 over unmasked tokens; pad clamped to 0
+            pos = (attention_mask.long().cumsum(dim=-1) - 1).clamp(min=0)  # (B, T)
+            pos_embd = self.wpe(pos)  # (B, T, n_embd)
+        else:
+            pos = torch.arange(0, T, dtype=torch.long, device=idx.device)
+            pos_embd = self.wpe(pos)  # (T, n_embd)
         x = token_embd + pos_embd
 
         for block in self.h:
