@@ -91,6 +91,26 @@ def test_attention_mask_ignores_padding(model: GPT2, config: GPT2Config) -> None
     torch.testing.assert_close(logits_padded[:, :real_len], logits_base)
 
 
+def test_left_padding_matches_unpadded(model: GPT2, config: GPT2Config) -> None:
+    """Left-padding + mask must yield the same logits on the real tokens as the
+    unpadded sequence — position ids are derived from the mask, so padding does
+    not shift the positional encoding of real tokens."""
+    torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
+    real_len = 6
+    idx = torch.randint(0, config.vocab_size, (1, real_len))
+
+    logits_base, _ = model(idx)
+
+    pad_len = 4
+    pad = torch.randint(0, config.vocab_size, (1, pad_len))
+    idx_padded = torch.cat([pad, idx], dim=1)  # left pad
+    mask = torch.cat([torch.zeros(1, pad_len), torch.ones(1, real_len)], dim=1)
+    logits_padded, _ = model(idx_padded, attention_mask=mask)
+
+    # real tokens occupy the right-most `real_len` positions
+    torch.testing.assert_close(logits_padded[:, pad_len:], logits_base)
+
+
 def test_attention_mask_wrong_shape_raises(model: GPT2, config: GPT2Config) -> None:
     idx = torch.randint(0, config.vocab_size, (2, 10))
     bad_mask = torch.ones(2, 10, 10)  # should be (B, T)
