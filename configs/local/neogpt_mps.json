@@ -1,0 +1,70 @@
+{
+    "model": {
+        "model_type": "neogpt",
+        "vocab_size": 50257,
+        "n_embd": 768,
+        "block_size": 1024,
+        "n_layer": 12,
+        "n_head": 12,
+        "rope_base": 10000
+    },
+    "train": {
+        "max_steps": 1000,
+        "grad_clip": 1.0,
+        "total_batch_size": 8192,
+        "compile_model": false,
+        "eval_loss": {
+            "every": 50,
+            "steps": 20
+        },
+        "eval_generate": {
+            "every": 5,
+            "prompt": "Today is a nice day, because",
+            "samples": 5,
+            "max_tokens": 50,
+            "use_chat_template": false
+        },
+        "eval_hellaswag": {
+            "every": null
+        },
+        "eval_gsm8k": {
+            "every": null
+        },
+        "checkpoint_every": 500,
+        "checkpoint_dir": "checkpoints/neogpt_mps",
+        "resume_from": null,
+        "log_every": 1,
+        "wandb_project": null
+    },
+    "optimizer": {
+        "type": "adamw",
+        "lr": 0.0006,
+        "weight_decay": 0.1,
+        "betas": [
+            0.9,
+            0.95
+        ],
+        "eps": 1e-08,
+        "schedule": {
+            "type": "cosine",
+            "warmup_steps": 100,
+            "min_lr_ratio": 0.1
+        }
+    },
+    "data": {
+        "data_root": "data/gpt2/roneneldan_TinyStories",
+        "batch_size": 4,
+        "seq_len": 1024,
+        "tokenizer": "gpt2",
+        "loader_type": "pretrain"
+    },
+    "prep": {
+        "data_root": "data/gpt2/roneneldan_TinyStories",
+        "dataset": "roneneldan/TinyStories",
+        "name": "",
+        "tokenizer": "gpt2",
+        "dataset_split": "train",
+        "shard_size": 10000000,
+        "num_validation_shards": 1
+    }
+}

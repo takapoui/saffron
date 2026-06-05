@@ -42,6 +42,7 @@ class GPT2Config(BaseConfig):
 class NeoGPTConfig(BaseConfig):
     n_layer: int
     n_head: int
+    rope_base: int
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> NeoGPTConfig:
@@ -51,6 +52,7 @@ class NeoGPTConfig(BaseConfig):
             block_size=d["block_size"],
             n_layer=d["n_layer"],
             n_head=d["n_head"],
+            rope_base=d["rope_base"],
         )
 
 

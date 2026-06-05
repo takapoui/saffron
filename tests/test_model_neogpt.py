@@ -10,6 +10,7 @@ import torch
 
 from saffron.constants import LABEL_IGNORE_INDEX
 from saffron.model import NeoGPT, NeoGPTConfig
+from saffron.model.neogpt import RotaryEmbedding
 
 
 def _fake_tokenizer(stop_ids: list[int]) -> MagicMock:
@@ -28,6 +29,7 @@ def config() -> NeoGPTConfig:
         block_size=64,
         n_layer=2,
         n_head=4,
+        rope_base=10000,
     )
 
 
@@ -211,3 +213,87 @@ def test_generate_stops_finished_rows_only(config: NeoGPTConfig) -> None:
 
     # Generation ran for the full max_new_tokens (loop did not exit early)
     assert len(new_row1) == max_new
+
+
+# --- RoPE ---
+
+
+def test_rotary_cache_shape() -> None:
+    dim, base, max_seq_len = 16, 10000, 32
+    rope = RotaryEmbedding(dim=dim, base=base, max_seq_len=max_seq_len)
+    assert rope.cos_cache.shape == (max_seq_len, dim)
+    assert rope.sin_cache.shape == (max_seq_len, dim)
+
+
+def test_rotary_inv_freq_decreases() -> None:
+    """Higher dimension indices must have lower frequency (slower rotation)."""
+    dim, base, max_seq_len = 16, 10000, 32
+    rope = RotaryEmbedding(dim=dim, base=base, max_seq_len=max_seq_len)
+    # cos_cache[1] gives the cosines at position 1; values = cos(theta_i * 1)
+    # higher i → smaller theta_i → cos(theta_i) closer to 1 (less rotation)
+    cos_pos1 = rope.cos_cache[1]  # shape: (dim,)
+    # the first half encodes distinct frequencies; second half is repeated
+    half = dim // 2
+    angles = cos_pos1[:half]
+    # each successive angle should be closer to 1 (i.e. smaller rotation)
+    assert (angles[1:] >= angles[:-1]).all()
+
+
+def test_rotary_position_zero_is_identity() -> None:
+    """At position 0, cos=1 and sin=0, so apply_rope must return x unchanged."""
+    dim, base, max_seq_len = 16, 10000, 32
+    rope = RotaryEmbedding(dim=dim, base=base, max_seq_len=max_seq_len)
+    x = torch.randn(1, 1, 1, dim)  # (B, H, T=1, d_head)
+    out = rope.apply_rope(x, T=1)
+    torch.testing.assert_close(out, x)
+
+
+def test_rotary_preserves_norm() -> None:
+    """RoPE is a rotation so ||apply_rope(x)|| == ||x|| for every vector."""
+    dim, base, max_seq_len = 16, 10000, 16
+    rope = RotaryEmbedding(dim=dim, base=base, max_seq_len=max_seq_len)
+    x = torch.randn(2, 4, max_seq_len, dim)
+    out = rope.apply_rope(x, T=max_seq_len)
+    torch.testing.assert_close(out.norm(dim=-1), x.norm(dim=-1))  # type: ignore[reportUnknownMemberType]
+
+
+def test_rotary_relative_position_via_dot_product() -> None:
+    """q_m · k_n should depend only on (m-n), not on absolute positions.
+    We verify this by checking that the dot product at offset d is the same
+    regardless of where in the sequence it occurs."""
+    dim, base, max_seq_len = 16, 10000, 32
+    rope = RotaryEmbedding(dim=dim, base=base, max_seq_len=max_seq_len)
+
+    torch.manual_seed(42)  # type: ignore[reportUnknownMemberType]
+    q = torch.randn(1, 1, max_seq_len, dim)
+    k = torch.randn(1, 1, max_seq_len, dim)
+
+    q_rot = rope.apply_rope(q, T=max_seq_len)
+    k_rot = rope.apply_rope(k, T=max_seq_len)
+
+    # dot product between position 2 and 0 (offset=2)
+    dot_a = (q_rot[0, 0, 2] * k_rot[0, 0, 0]).sum()
+    # same vectors, but shifted to positions 12 and 10 (same offset=2)
+    q2 = torch.zeros_like(q)
+    k2 = torch.zeros_like(k)
+    q2[0, 0, 12] = q[0, 0, 2]
+    k2[0, 0, 10] = k[0, 0, 0]
+    q2_rot = rope.apply_rope(q2, T=max_seq_len)
+    k2_rot = rope.apply_rope(k2, T=max_seq_len)
+    dot_b = (q2_rot[0, 0, 12] * k2_rot[0, 0, 10]).sum()
+
+    torch.testing.assert_close(dot_a, dot_b)
+
+
+def test_rotary_larger_base_rotates_slower() -> None:
+    """A larger base means smaller frequencies, so positions rotate less per step."""
+    dim, max_seq_len = 16, 32
+    rope_small = RotaryEmbedding(dim=dim, base=10, max_seq_len=max_seq_len)
+    rope_large = RotaryEmbedding(dim=dim, base=10000, max_seq_len=max_seq_len)
+
+    # total rotation = sum of |angle| across all dimensions at position 1
+    def total_rotation(rope: RotaryEmbedding) -> float:
+        angles = rope.cos_cache[1].acos()  # angle = arccos(cos(theta_i * 1))
+        return float(angles.sum().item())
+
+    assert total_rotation(rope_small) > total_rotation(rope_large)
