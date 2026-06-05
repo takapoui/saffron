@@ -106,9 +106,9 @@ class MLP(nn.Module):
 class Block(nn.Module):
     def __init__(self, config: NeoGPTConfig) -> None:
         super().__init__()
-        self.ln_1 = nn.LayerNorm(config.n_embd)
+        self.ln_1 = nn.RMSNorm(config.n_embd)
         self.attn = CausalSelfAttention(config)
-        self.ln_2 = nn.LayerNorm(config.n_embd)
+        self.ln_2 = nn.RMSNorm(config.n_embd)
         self.mlp = MLP(config)
 
     def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
@@ -127,7 +127,7 @@ class NeoGPT(BaseModel):
 
         self.wte = nn.Embedding(config.vocab_size, config.n_embd)
         self.h = nn.ModuleList([Block(config) for _ in range(config.n_layer)])
-        self.ln_f = nn.LayerNorm(config.n_embd)
+        self.ln_f = nn.RMSNorm(config.n_embd)
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
         self.lm_head.weight = self.wte.weight
