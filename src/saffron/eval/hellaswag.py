@@ -20,7 +20,7 @@ _hellaswag_dataset: Dataset | None = None
 def _get_hellaswag_dataset() -> Dataset:
     global _hellaswag_dataset
     if _hellaswag_dataset is None:
-        _hellaswag_dataset = load_dataset("hellaswag", split="validation", trust_remote_code=True)
+        _hellaswag_dataset = load_dataset("Rowan/hellaswag", split="validation")
         logger.info("Downloaded hellaswag dataset.")
     return _hellaswag_dataset
 
