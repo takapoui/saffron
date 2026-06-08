@@ -103,15 +103,12 @@ class CausalSelfAttention(nn.Module):
 
         is_prefill = past_kv is None
         if attention_mask is not None:
-            if not is_prefill:
-                # TODO
-                raise NotImplementedError
-            # combine (B, T) padding mask with causal mask; can't use is_causal alongside attn_mask
-            assert attention_mask.shape == (B, T)
-            pad = attention_mask[:, None, None, :].bool()  # (B, 1, 1, T)
-            y = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=pad & self.causal[:T, :T], enable_gqa=True
-            )
+            # attention_mask is a validity mask over all key positions (B, Lk),
+            # where Lk = past_len + T. Combined with causal; can't use is_causal alongside attn_mask
+            assert attention_mask.shape == (B, k.shape[2])
+            pad = attention_mask[:, None, None, :].bool()  # (B, 1, 1, Lk)
+            causal = self.causal[past_len : past_len + T, : k.shape[2]]
+            y = F.scaled_dot_product_attention(q, k, v, attn_mask=pad & causal, enable_gqa=True)
         else:
             # prefill: square causal mask. decode: single query sees only cached past (no mask)
             y = F.scaled_dot_product_attention(q, k, v, is_causal=is_prefill, enable_gqa=True)
@@ -203,17 +200,15 @@ class NeoGPT(BaseModel):
         attention_mask: torch.Tensor | None = None,
         past_kvs: list[KVCache | None] | None = None,
         use_cache: bool = False,
-    ) -> tuple[torch.Tensor, torch.Tensor | None, list[KVCache]]:
+    ) -> tuple[torch.Tensor, torch.Tensor | None, list[KVCache | None]]:
         B, T = idx.size()
         assert self.config.block_size >= T, "block size exhausted"
-        if attention_mask is not None:
-            assert attention_mask.shape == (B, T)
 
         x = self.wte(idx)  # (B, T, n_embd)
 
         kvs: list[KVCache | None] = [None] * self.config.n_layer if past_kvs is None else past_kvs
 
-        new_kvs: list[KVCache] = []
+        new_kvs: list[KVCache | None] = []
         for i, block in enumerate(self.h):
             x, present_kv = block(x, attention_mask=attention_mask, past_kv=kvs[i])
             if use_cache:
@@ -242,6 +237,7 @@ class NeoGPT(BaseModel):
         top_p: float = 1.0,
         attention_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        assert idx.shape[1] + max_new_tokens <= self.config.block_size, "Exceeds block_size"
         if top_p != 1.0:
             raise ValueError("Native model.generate does not support top_p yet.")
         original_device = idx.device
@@ -264,27 +260,34 @@ class NeoGPT(BaseModel):
                 dim=1,
             )
             # extend the prompt mask with 1s for generated positions (always real tokens)
-            full_mask = None
-            if attention_mask is not None:
-                assert attention_mask.shape == idx.shape
-                full_mask = torch.cat(
-                    (
-                        attention_mask,
-                        torch.ones(
-                            (idx.shape[0], max_new_tokens),
-                            dtype=attention_mask.dtype,
-                            device=idx.device,
-                        ),
-                    ),
-                    dim=1,
-                )
+
             finished = torch.zeros(idx.shape[0], dtype=torch.bool, device=idx.device)
             pad_token_id = self.tokenizer.pad_token_id
             stop_token_ids = self.tokenizer.stop_token_ids
+
+            full_mask: torch.Tensor | None = None
+            if attention_mask is not None:
+                assert attention_mask.shape == idx.shape
+                full_mask = torch.cat(
+                    [
+                        attention_mask,
+                        torch.ones(
+                            idx.shape[0],
+                            max_new_tokens,
+                            dtype=attention_mask.dtype,
+                            device=attention_mask.device,
+                        ),
+                    ],
+                    dim=1,
+                )
+
+            prompt_mask = full_mask[:, : idx.shape[1]] if full_mask is not None else None
+            kvs: list[KVCache | None] | None = None
+            logits, _, kvs = self.forward_with_cache(
+                idx, attention_mask=prompt_mask, past_kvs=kvs, use_cache=True
+            )
+
             for col in range(idx.shape[1], output.shape[1]):
-                start = max(0, col - self.config.block_size)
-                window_mask = full_mask[:, start:col] if full_mask is not None else None
-                logits, _ = self(output[:, start:col], attention_mask=window_mask)
                 logits = logits[:, -1, :] / temperature
                 probs = F.softmax(logits, dim=-1)
 
@@ -299,6 +302,11 @@ class NeoGPT(BaseModel):
                 finished = finished | is_stop
                 if finished.all():
                     break
+
+                step_mask = full_mask[:, : col + 1] if full_mask is not None else None
+                logits, _, kvs = self.forward_with_cache(
+                    next_token[:, None], attention_mask=step_mask, past_kvs=kvs, use_cache=True
+                )
         finally:
             self.train()
             if original_device.type == "mps":

@@ -10,7 +10,7 @@ import torch
 
 from saffron.constants import LABEL_IGNORE_INDEX
 from saffron.model import NeoGPT, NeoGPTConfig
-from saffron.model.neogpt import RotaryEmbedding
+from saffron.model.neogpt import KVCache, RotaryEmbedding
 
 
 def _fake_tokenizer(stop_ids: list[int]) -> MagicMock:
@@ -232,17 +232,21 @@ def test_generate_stops_finished_rows_only(config: NeoGPTConfig) -> None:
     class _DetNeoGPT(NeoGPT):
         """Row 0 always predicts STOP; row 1 always predicts token 1."""
 
-        def forward(
+        # generate calls forward_with_cache, so override that to inject deterministic logits.
+        def forward_with_cache(
             self,
             idx: torch.Tensor,
             target: torch.Tensor | None = None,
             attention_mask: torch.Tensor | None = None,
-        ) -> tuple[torch.Tensor, torch.Tensor | None]:
+            past_kvs: list[KVCache | None] | None = None,
+            use_cache: bool = False,
+        ) -> tuple[torch.Tensor, torch.Tensor | None, list[KVCache | None]]:
             B, T = idx.shape
             logits = torch.zeros(B, T, self.config.vocab_size)
             logits[0, :, STOP] = 100.0  # row 0 → stop immediately
             logits[1, :, 1] = 100.0  # row 1 → token 1, never stops
-            return logits, None
+            # caches are unused by this stub; return correctly-shaped placeholders
+            return logits, None, [None] * self.config.n_layer
 
     torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
     model = _DetNeoGPT(config)
@@ -269,6 +273,68 @@ def test_generate_stops_finished_rows_only(config: NeoGPTConfig) -> None:
 
     # Generation ran for the full max_new_tokens (loop did not exit early)
     assert len(new_row1) == max_new
+
+
+# --- generate: KV cache correctness ---
+
+
+def _no_stop_tokenizer() -> MagicMock:
+    """Tokenizer that never stops, so generation always runs the full length."""
+    tok = MagicMock()
+    tok.stop_token_ids = []
+    tok.pad_token_id = 0
+    return tok
+
+
+def test_generate_cache_matches_full_recompute(model: NeoGPT, config: NeoGPTConfig) -> None:
+    """Cached greedy generation must equal a naive full-recompute reference
+    token-for-token. This is the core invariant the KV cache must preserve."""
+    model._tokenizer = _no_stop_tokenizer()  # pyright: ignore[reportPrivateUsage]
+    torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
+    idx = torch.randint(1, config.vocab_size, (2, 6))
+    n = 10
+
+    cached = model.generate(idx.clone(), max_new_tokens=n, top_k=1)
+
+    # reference: recompute the whole sequence each step, no cache, greedy
+    out = idx.clone()
+    for _ in range(n):
+        logits, _, _ = model.forward_with_cache(out, use_cache=False)
+        nxt = logits[:, -1, :].argmax(dim=-1, keepdim=True)
+        out = torch.cat([out, nxt], dim=1)
+
+    torch.testing.assert_close(cached, out)
+
+
+def test_generate_left_padding_matches_unpadded(model: NeoGPT, config: NeoGPTConfig) -> None:
+    """Generating from a left-padded prompt (+ mask) must yield the same new
+    tokens as generating from the unpadded prompt: padding is masked out and
+    RoPE is relative, so it does not change the real tokens' continuation."""
+    model._tokenizer = _no_stop_tokenizer()  # pyright: ignore[reportPrivateUsage]
+    torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
+    real = torch.randint(1, config.vocab_size, (1, 5))
+    n = 8
+
+    plain = model.generate(real.clone(), max_new_tokens=n, top_k=1)[:, 5:]
+
+    pad_len = 3
+    padded = torch.cat([torch.zeros(1, pad_len, dtype=torch.long), real], dim=1)
+    mask = torch.cat(
+        [torch.zeros(1, pad_len, dtype=torch.long), torch.ones(1, 5, dtype=torch.long)], dim=1
+    )
+    padded_out = model.generate(padded.clone(), max_new_tokens=n, top_k=1, attention_mask=mask)[
+        :, pad_len + 5 :
+    ]
+
+    torch.testing.assert_close(plain, padded_out)
+
+
+def test_generate_exceeds_block_size_raises(model: NeoGPT, config: NeoGPTConfig) -> None:
+    """prompt + max_new_tokens must fit within block_size (the cache cannot grow
+    past the RoPE/causal buffers)."""
+    idx = torch.randint(0, config.vocab_size, (1, 4))
+    with pytest.raises(AssertionError):
+        model.generate(idx, max_new_tokens=config.block_size)
 
 
 # --- RoPE ---
