@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypeAlias
+
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -8,6 +10,8 @@ from ..constants import LABEL_IGNORE_INDEX
 from ..tokenizer import TiktokenTokenizer, Tokenizer
 from .base_model import BaseModel
 from .config import NeoGPTConfig
+
+KVCache: TypeAlias = tuple[torch.Tensor, torch.Tensor]
 
 
 class ScaledLinear(nn.Linear):
@@ -76,8 +80,8 @@ class CausalSelfAttention(nn.Module):
         self,
         x: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
-        past_kv: tuple[torch.Tensor, torch.Tensor] | None = None,
-    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | None]:
+        past_kv: KVCache | None = None,
+    ) -> tuple[torch.Tensor, KVCache]:
         B, T, n_embd = x.shape
         assert n_embd == self.n_embd
         q, k, v = self.c_attn(x).split(
@@ -140,11 +144,16 @@ class Block(nn.Module):
         self.ln_2 = nn.RMSNorm(config.n_embd)
         self.mlp = MLP(config)
 
-    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
-        att, _ = self.attn(self.ln_1(x), attention_mask)
+    def forward(
+        self,
+        x: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        past_kv: KVCache | None = None,
+    ) -> tuple[torch.Tensor, KVCache]:
+        att, present_kv = self.attn(self.ln_1(x), attention_mask=attention_mask, past_kv=past_kv)
         x = x + att
         x = x + self.mlp(self.ln_2(x))
-        return x
+        return x, present_kv
 
 
 class NeoGPT(BaseModel):
@@ -180,6 +189,21 @@ class NeoGPT(BaseModel):
         target: torch.Tensor | None = None,
         attention_mask: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        logits, loss, _ = self.forward_with_cache(
+            idx=idx,
+            target=target,
+            attention_mask=attention_mask,
+        )
+        return logits, loss
+
+    def forward_with_cache(
+        self,
+        idx: torch.Tensor,
+        target: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        past_kvs: list[KVCache | None] | None = None,
+        use_cache: bool = False,
+    ) -> tuple[torch.Tensor, torch.Tensor | None, list[KVCache]]:
         B, T = idx.size()
         assert self.config.block_size >= T, "block size exhausted"
         if attention_mask is not None:
@@ -187,8 +211,13 @@ class NeoGPT(BaseModel):
 
         x = self.wte(idx)  # (B, T, n_embd)
 
-        for block in self.h:
-            x = block(x, attention_mask)
+        kvs: list[KVCache | None] = [None] * self.config.n_layer if past_kvs is None else past_kvs
+
+        new_kvs: list[KVCache] = []
+        for i, block in enumerate(self.h):
+            x, present_kv = block(x, attention_mask=attention_mask, past_kv=kvs[i])
+            if use_cache:
+                new_kvs.append(present_kv)
 
         x = self.ln_f(x)
         logits = self.lm_head(x)  # (B, T, vocab_size)
@@ -201,7 +230,7 @@ class NeoGPT(BaseModel):
                 ignore_index=LABEL_IGNORE_INDEX,
             )
 
-        return logits, loss
+        return logits, loss, new_kvs
 
     @torch.no_grad()
     def generate(
