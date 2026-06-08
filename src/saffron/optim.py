@@ -49,6 +49,10 @@ class OptimizerConfig:
     schedule: ScheduleConfig
     muon_lr: float | None = None
     muon_momentum: float | None = None
+    # In a Muon hybrid the AdamW-managed params want much higher LRs than a normal
+    # all-AdamW lr. If unset, they fall back to `lr`.
+    embedding_lr: float | None = None  # tied wte / lm_head
+    norm_lr: float | None = None  # RMSNorm gains / 1D params
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> OptimizerConfig:
@@ -63,6 +67,8 @@ class OptimizerConfig:
             schedule=schedule,
             muon_lr=d.get("muon_lr"),
             muon_momentum=d.get("muon_momentum"),
+            embedding_lr=d.get("embedding_lr"),
+            norm_lr=d.get("norm_lr"),
         )
 
 
@@ -181,11 +187,16 @@ def _configure_muon(
         weight_decay=config.weight_decay,
     )
 
+    # In a Muon hybrid, embeddings/head and norms want higher LRs than a plain
+    # all-AdamW lr (cf. nanochat). Fall back to config.lr when unset.
+    embedding_lr = config.embedding_lr if config.embedding_lr is not None else config.lr
+    norm_lr = config.norm_lr if config.norm_lr is not None else config.lr
+
     use_fused = device_type == "cuda" and "fused" in inspect.signature(torch.optim.AdamW).parameters
     adamw = torch.optim.AdamW(
         [
-            {"params": adamw_2d, "weight_decay": config.weight_decay},
-            {"params": adamw_other, "weight_decay": 0.0},
+            {"params": adamw_2d, "weight_decay": config.weight_decay, "lr": embedding_lr},
+            {"params": adamw_other, "weight_decay": 0.0, "lr": norm_lr},
         ],
         lr=config.lr,
         betas=config.betas,
@@ -198,11 +209,14 @@ def _configure_muon(
             g["base_lr"] = g["lr"]
 
     logger.info(
-        "Muon: %d matrices (%d params); AdamW: %d embed/head + %d other; fused AdamW: %s",
+        "Muon: %d matrices (%d params) lr=%s; AdamW embed/head=%d lr=%s, other=%d lr=%s; fused=%s",
         len(muon_params),
         sum(p.numel() for p in muon_params),
+        lr,
         len(adamw_2d),
+        embedding_lr,
         len(adamw_other),
+        norm_lr,
         use_fused,
     )
     return CombinedOptimizer({"muon": muon, "adamw": adamw})
