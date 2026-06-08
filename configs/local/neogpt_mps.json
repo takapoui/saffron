@@ -6,7 +6,8 @@
         "block_size": 1024,
         "n_layer": 12,
         "n_head": 12,
-        "rope_base": 10000
+        "rope_base": 10000,
+        "mlp_hidden_dim": 2048
     },
     "train": {
         "max_steps": 1000,

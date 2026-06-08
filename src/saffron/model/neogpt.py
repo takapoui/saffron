@@ -92,13 +92,14 @@ class CausalSelfAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, config: NeoGPTConfig) -> None:
         super().__init__()
-        self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd, bias=False)
-        self.gelu = nn.GELU(approximate="tanh")
-        self.c_proj = ScaledLinear(4 * config.n_embd, config.n_embd, bias=False)
+        self.c_fc = nn.Linear(config.n_embd, config.mlp_hidden_dim, bias=False)
+        self.gate = nn.Linear(config.n_embd, config.mlp_hidden_dim, bias=False)
+        self.c_proj = ScaledLinear(config.mlp_hidden_dim, config.n_embd, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.c_fc(x)
-        x = self.gelu(x)
+        up = self.c_fc(x)
+        gate = self.gate(x)
+        x = F.silu(gate) * up
         x = self.c_proj(x)
         return x
 

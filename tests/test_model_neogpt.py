@@ -30,6 +30,7 @@ def config() -> NeoGPTConfig:
         n_layer=2,
         n_head=4,
         rope_base=10000,
+        mlp_hidden_dim=256,
     )
 
 
