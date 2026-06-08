@@ -87,7 +87,7 @@ Each config file contains a `prep` section with dataset and tokenization setting
 .venv/bin/python scripts/run_train.py --config configs/pretraining/gpt2_small.json
 
 # multi GPU (e.g. 8 GPUs)
-.venv/bin/torchrun --nproc_per_node=8 scripts/run_train.py --config configs/pretraining/gpt2_small.json
+.venv/bin/python -m torch.distributed.run --nproc_per_node=8 scripts/run_train.py --config configs/pretraining/gpt2_small.json
 ```
 
 **SFT:**
