@@ -208,6 +208,42 @@ def test_generate_stops_at_stop_token(model: NeoGPT, config: NeoGPTConfig) -> No
     assert out.shape[1] <= 55
 
 
+def test_generate_pads_tail_after_early_stop(model: NeoGPT, config: NeoGPTConfig) -> None:
+    """When all rows finish before max_new_tokens, the unused tail must be the
+    pad token id (not a leftover 0). Uses a non-zero pad id to catch the bug."""
+    stop_token = 7
+    pad_token = 3  # non-zero, distinct from stop
+    tok = MagicMock()
+    tok.stop_token_ids = [stop_token]
+    tok.pad_token_id = pad_token
+    model._tokenizer = tok  # pyright: ignore[reportPrivateUsage]
+
+    # force an immediate stop: make the model always predict the stop token
+    class _StopNeoGPT(NeoGPT):
+        def forward_with_cache(
+            self,
+            idx: torch.Tensor,
+            target: torch.Tensor | None = None,
+            attention_mask: torch.Tensor | None = None,
+            past_kvs: list[KVCache | None] | None = None,
+            use_cache: bool = False,
+        ) -> tuple[torch.Tensor, torch.Tensor | None, list[KVCache | None]]:
+            B, T = idx.shape
+            logits = torch.zeros(B, T, self.config.vocab_size)
+            logits[:, :, stop_token] = 100.0
+            return logits, None, [None] * self.config.n_layer
+
+    torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
+    m = _StopNeoGPT(config)
+    m._tokenizer = tok  # pyright: ignore[reportPrivateUsage]
+    idx = torch.randint(0, config.vocab_size, (1, 4))
+    out = m.generate(idx, max_new_tokens=10, top_k=1)
+    tail = out[0, 4:]
+    # first generated token is the stop; everything after must be pad, never 0-leftover
+    assert tail[0].item() == stop_token
+    assert all(t.item() == pad_token for t in tail[1:])
+
+
 def test_generate_batch(model: NeoGPT, config: NeoGPTConfig) -> None:
     idx = torch.randint(0, config.vocab_size, (3, 5))
     out = model.generate(idx, max_new_tokens=8)

@@ -250,20 +250,24 @@ class NeoGPT(BaseModel):
 
         self.eval()
         try:
+            pad_token_id = self.tokenizer.pad_token_id
+            stop_token_ids = self.tokenizer.stop_token_ids
+            # pre-fill generated positions with pad, so an early break (all rows finished)
+            # leaves the unused tail as pad rather than token id 0.
             output = torch.cat(
                 (
                     idx,
-                    torch.zeros(
-                        (idx.shape[0], max_new_tokens), dtype=torch.long, device=idx.device
+                    torch.full(
+                        (idx.shape[0], max_new_tokens),
+                        pad_token_id,
+                        dtype=torch.long,
+                        device=idx.device,
                     ),
                 ),
                 dim=1,
             )
-            # extend the prompt mask with 1s for generated positions (always real tokens)
 
             finished = torch.zeros(idx.shape[0], dtype=torch.bool, device=idx.device)
-            pad_token_id = self.tokenizer.pad_token_id
-            stop_token_ids = self.tokenizer.stop_token_ids
 
             full_mask: torch.Tensor | None = None
             if attention_mask is not None:

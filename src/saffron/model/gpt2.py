@@ -171,11 +171,18 @@ class GPT2(BaseModel):
 
         self.eval()
         try:
+            pad_token_id = self.tokenizer.pad_token_id
+            stop_token_ids = self.tokenizer.stop_token_ids
+            # pre-fill generated positions with pad, so an early break (all rows finished)
+            # leaves the unused tail as pad rather than token id 0.
             output = torch.cat(
                 (
                     idx,
-                    torch.zeros(
-                        (idx.shape[0], max_new_tokens), dtype=torch.long, device=idx.device
+                    torch.full(
+                        (idx.shape[0], max_new_tokens),
+                        pad_token_id,
+                        dtype=torch.long,
+                        device=idx.device,
                     ),
                 ),
                 dim=1,
@@ -196,8 +203,6 @@ class GPT2(BaseModel):
                     dim=1,
                 )
             finished = torch.zeros(idx.shape[0], dtype=torch.bool, device=idx.device)
-            pad_token_id = self.tokenizer.pad_token_id
-            stop_token_ids = self.tokenizer.stop_token_ids
             for col in range(idx.shape[1], output.shape[1]):
                 start = max(0, col - self.config.block_size)
                 window_mask = full_mask[:, start:col] if full_mask is not None else None
