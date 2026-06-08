@@ -48,10 +48,15 @@ class CausalSelfAttention(nn.Module):
     def __init__(self, config: NeoGPTConfig) -> None:
         super().__init__()
         assert config.n_embd % config.n_head == 0
+        assert config.n_head % config.n_kv_head == 0
         self.n_embd = config.n_embd
         self.n_head = config.n_head
+        self.n_kv_head = config.n_kv_head
+        self.head_dim = self.n_embd // self.n_head
 
-        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=False)
+        self.c_attn = nn.Linear(
+            config.n_embd, config.n_embd + 2 * self.n_kv_head * self.head_dim, bias=False
+        )
         self.c_proj = ScaledLinear(config.n_embd, config.n_embd, bias=False)
         self.rotary = RotaryEmbedding(
             dim=config.n_embd // config.n_head,
@@ -66,11 +71,13 @@ class CausalSelfAttention(nn.Module):
     def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         B, T, n_embd = x.shape
         assert n_embd == self.n_embd
-        q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
+        q, k, v = self.c_attn(x).split(
+            [n_embd, self.n_kv_head * self.head_dim, self.n_kv_head * self.head_dim], dim=2
+        )
 
-        q = q.reshape(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
-        k = k.reshape(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
-        v = v.reshape(B, T, self.n_head, n_embd // self.n_head).transpose(1, 2)
+        q = q.reshape(B, T, self.n_head, self.head_dim).transpose(1, 2)
+        k = k.reshape(B, T, self.n_kv_head, self.head_dim).transpose(1, 2)
+        v = v.reshape(B, T, self.n_kv_head, self.head_dim).transpose(1, 2)
 
         q = self.rotary.apply_rope(q, T)
         k = self.rotary.apply_rope(k, T)
@@ -79,10 +86,12 @@ class CausalSelfAttention(nn.Module):
             # combine (B, T) padding mask with causal mask; can't use is_causal alongside attn_mask
             assert attention_mask.shape == (B, T)
             pad = attention_mask[:, None, None, :].bool()  # (B, 1, 1, T)
-            y = F.scaled_dot_product_attention(q, k, v, attn_mask=pad & self.causal[:T, :T])
+            y = F.scaled_dot_product_attention(
+                q, k, v, attn_mask=pad & self.causal[:T, :T], enable_gqa=True
+            )
         else:
             # use is_causal for performance
-            y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+            y = F.scaled_dot_product_attention(q, k, v, is_causal=True, enable_gqa=True)
         y = y.transpose(1, 2).contiguous().reshape(B, T, n_embd)
 
         y = self.c_proj(y)

@@ -60,6 +60,11 @@ class SupervisedTrainer(BaseTrainer):
             B * T * run_config.ddp_world_size
         )
         if self.master_process:
+            logger.info(
+                "Model parameters: %s (%.2fM)",
+                f"{self._num_model_parameters:,}",
+                self._num_model_parameters / 1e6,
+            )
             logger.info("Using gradient accumulation over %d steps.", self.accumulation_steps)
 
         resume_from = train_config.resume_from

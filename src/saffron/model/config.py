@@ -44,6 +44,7 @@ class NeoGPTConfig(BaseConfig):
     n_head: int
     rope_base: int
     mlp_hidden_dim: int
+    n_kv_head: int
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> NeoGPTConfig:
@@ -55,6 +56,7 @@ class NeoGPTConfig(BaseConfig):
             n_head=d["n_head"],
             rope_base=d["rope_base"],
             mlp_hidden_dim=d["mlp_hidden_dim"],
+            n_kv_head=d["n_kv_head"],
         )
 
 

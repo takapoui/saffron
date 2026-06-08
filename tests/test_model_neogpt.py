@@ -31,6 +31,7 @@ def config() -> NeoGPTConfig:
         n_head=4,
         rope_base=10000,
         mlp_hidden_dim=256,
+        n_kv_head=2,
     )
 
 
@@ -119,6 +120,60 @@ def test_attention_mask_wrong_shape_raises(model: NeoGPT, config: NeoGPTConfig) 
     bad_mask = torch.ones(2, 10, 10)  # should be (B, T)
     with pytest.raises(AssertionError):
         model(idx, attention_mask=bad_mask)
+
+
+# --- GQA ---
+
+
+def _neogpt_config(**overrides: int) -> NeoGPTConfig:
+    base = {
+        "vocab_size": 1000,
+        "n_embd": 96,
+        "block_size": 64,
+        "n_layer": 2,
+        "n_head": 4,
+        "rope_base": 10000,
+        "mlp_hidden_dim": 256,
+        "n_kv_head": 2,
+    }
+    base.update(overrides)
+    return NeoGPTConfig(**base)  # type: ignore[arg-type]
+
+
+def test_gqa_forward_shape() -> None:
+    """A grouped config (n_kv_head < n_head) produces correct logits shape."""
+    cfg = _neogpt_config(n_head=4, n_kv_head=2)
+    torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
+    model = NeoGPT(cfg)
+    idx = torch.randint(0, cfg.vocab_size, (2, 10))
+    logits, _ = model(idx)
+    assert logits.shape == (2, 10, cfg.vocab_size)
+
+
+def test_mha_is_special_case_of_gqa() -> None:
+    """n_kv_head == n_head (full multi-head attention) must still run."""
+    cfg = _neogpt_config(n_head=4, n_kv_head=4)
+    torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
+    model = NeoGPT(cfg)
+    idx = torch.randint(0, cfg.vocab_size, (2, 10))
+    logits, _ = model(idx)
+    assert logits.shape == (2, 10, cfg.vocab_size)
+
+
+def test_gqa_reduces_attention_params() -> None:
+    """Fewer KV heads must shrink the c_attn projection vs full MHA."""
+    gqa = NeoGPT(_neogpt_config(n_head=4, n_kv_head=2))
+    mha = NeoGPT(_neogpt_config(n_head=4, n_kv_head=4))
+    gqa_params = sum(p.numel() for p in gqa.parameters())
+    mha_params = sum(p.numel() for p in mha.parameters())
+    assert gqa_params < mha_params
+
+
+def test_gqa_requires_divisible_head_counts() -> None:
+    """n_head must be divisible by n_kv_head."""
+    cfg = _neogpt_config(n_head=4, n_kv_head=3)
+    with pytest.raises(AssertionError):
+        NeoGPT(cfg)
 
 
 # --- generate ---
