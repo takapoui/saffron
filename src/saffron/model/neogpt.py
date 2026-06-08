@@ -51,8 +51,8 @@ class CausalSelfAttention(nn.Module):
         self.n_embd = config.n_embd
         self.n_head = config.n_head
 
-        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
-        self.c_proj = ScaledLinear(config.n_embd, config.n_embd)
+        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=False)
+        self.c_proj = ScaledLinear(config.n_embd, config.n_embd, bias=False)
         self.rotary = RotaryEmbedding(
             dim=config.n_embd // config.n_head,
             base=config.rope_base,
@@ -92,9 +92,9 @@ class CausalSelfAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, config: NeoGPTConfig) -> None:
         super().__init__()
-        self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd)
+        self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd, bias=False)
         self.gelu = nn.GELU(approximate="tanh")
-        self.c_proj = ScaledLinear(4 * config.n_embd, config.n_embd)
+        self.c_proj = ScaledLinear(4 * config.n_embd, config.n_embd, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.c_fc(x)
@@ -140,8 +140,6 @@ class NeoGPT(BaseModel):
             if hasattr(module, "SAFFRON_INIT"):
                 std *= (2 * self.config.n_layer) ** -0.5
             torch.nn.init.normal_(module.weight, mean=0, std=std)
-        if isinstance(module, nn.Linear) and module.bias is not None:  # type: ignore[redundant-expr]
-            torch.nn.init.zeros_(module.bias)
 
     def _get_tokenizer(self) -> Tokenizer:
         return TiktokenTokenizer("gpt2")
