@@ -72,7 +72,12 @@ class CausalSelfAttention(nn.Module):
             torch.tril(torch.ones(config.block_size, config.block_size, dtype=torch.bool)),
         )
 
-    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        past_kv: tuple[torch.Tensor, torch.Tensor] | None = None,
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | None]:
         B, T, n_embd = x.shape
         assert n_embd == self.n_embd
         q, k, v = self.c_attn(x).split(
@@ -83,10 +88,20 @@ class CausalSelfAttention(nn.Module):
         k = k.reshape(B, T, self.n_kv_head, self.head_dim).transpose(1, 2)
         v = v.reshape(B, T, self.n_kv_head, self.head_dim).transpose(1, 2)
 
-        q = self.rotary.apply_rope(q, start_pos=0)
-        k = self.rotary.apply_rope(k, start_pos=0)
+        past_len = past_kv[0].shape[2] if past_kv is not None else 0
+        q = self.rotary.apply_rope(q, start_pos=past_len)
+        k = self.rotary.apply_rope(k, start_pos=past_len)
+        if past_kv is not None:
+            past_k, past_v = past_kv
+            k = torch.cat([past_k, k], dim=2)
+            v = torch.cat([past_v, v], dim=2)
+        present_kv = (k, v)
 
+        is_prefill = past_kv is None
         if attention_mask is not None:
+            if not is_prefill:
+                # TODO
+                raise NotImplementedError
             # combine (B, T) padding mask with causal mask; can't use is_causal alongside attn_mask
             assert attention_mask.shape == (B, T)
             pad = attention_mask[:, None, None, :].bool()  # (B, 1, 1, T)
@@ -94,12 +109,12 @@ class CausalSelfAttention(nn.Module):
                 q, k, v, attn_mask=pad & self.causal[:T, :T], enable_gqa=True
             )
         else:
-            # use is_causal for performance
-            y = F.scaled_dot_product_attention(q, k, v, is_causal=True, enable_gqa=True)
+            # prefill: square causal mask. decode: single query sees only cached past (no mask)
+            y = F.scaled_dot_product_attention(q, k, v, is_causal=is_prefill, enable_gqa=True)
         y = y.transpose(1, 2).contiguous().reshape(B, T, n_embd)
 
         y = self.c_proj(y)
-        return y
+        return y, present_kv
 
 
 class MLP(nn.Module):
@@ -126,7 +141,8 @@ class Block(nn.Module):
         self.mlp = MLP(config)
 
     def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
-        x = x + self.attn(self.ln_1(x), attention_mask)
+        att, _ = self.attn(self.ln_1(x), attention_mask)
+        x = x + att
         x = x + self.mlp(self.ln_2(x))
         return x
 
