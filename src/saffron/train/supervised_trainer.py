@@ -160,8 +160,9 @@ class SupervisedTrainer(BaseTrainer):
                 self.model.parameters(), self.train_config.grad_clip
             )
             lr = get_lr(step, self.train_config.max_steps, self.optimizer_config)
+            frac = lr / self.optimizer_config.lr
             for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr
+                param_group["lr"] = param_group.get("base_lr", self.optimizer_config.lr) * frac
             self.optimizer.step()  # type: ignore[reportUnknownMemberType]
 
             if self.run_config.device_type == "cuda":
