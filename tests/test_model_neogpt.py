@@ -300,7 +300,7 @@ def test_rotary_position_zero_is_identity() -> None:
     dim, base, max_seq_len = 16, 10000, 32
     rope = RotaryEmbedding(dim=dim, base=base, max_seq_len=max_seq_len)
     x = torch.randn(1, 1, 1, dim)  # (B, H, T=1, d_head)
-    out = rope.apply_rope(x, T=1)
+    out = rope.apply_rope(x, start_pos=0)
     torch.testing.assert_close(out, x)
 
 
@@ -309,8 +309,31 @@ def test_rotary_preserves_norm() -> None:
     dim, base, max_seq_len = 16, 10000, 16
     rope = RotaryEmbedding(dim=dim, base=base, max_seq_len=max_seq_len)
     x = torch.randn(2, 4, max_seq_len, dim)
-    out = rope.apply_rope(x, T=max_seq_len)
+    out = rope.apply_rope(x, start_pos=0)
     torch.testing.assert_close(out.norm(dim=-1), x.norm(dim=-1))  # type: ignore[reportUnknownMemberType]
+
+
+def test_rotary_offset_matches_full_sequence() -> None:
+    """Applying RoPE one token at a time with increasing start_pos must equal
+    applying it to the whole sequence at once. This is the invariant the KV
+    cache relies on: a token rotated at its absolute position is identical
+    whether processed alone (decode) or as part of the full prefill."""
+    dim, base, max_seq_len = 16, 10000, 32
+    rope = RotaryEmbedding(dim=dim, base=base, max_seq_len=max_seq_len)
+
+    torch.manual_seed(0)  # type: ignore[reportUnknownMemberType]
+    seq_len = 8
+    x = torch.randn(1, 2, seq_len, dim)  # (B, H, T, d_head)
+
+    full = rope.apply_rope(x, start_pos=0)
+
+    # process each position individually at its absolute offset
+    per_token = torch.stack(
+        [rope.apply_rope(x[:, :, t : t + 1, :], start_pos=t)[:, :, 0, :] for t in range(seq_len)],
+        dim=2,
+    )
+
+    torch.testing.assert_close(per_token, full)
 
 
 def test_rotary_relative_position_via_dot_product() -> None:
@@ -324,8 +347,8 @@ def test_rotary_relative_position_via_dot_product() -> None:
     q = torch.randn(1, 1, max_seq_len, dim)
     k = torch.randn(1, 1, max_seq_len, dim)
 
-    q_rot = rope.apply_rope(q, T=max_seq_len)
-    k_rot = rope.apply_rope(k, T=max_seq_len)
+    q_rot = rope.apply_rope(q, start_pos=0)
+    k_rot = rope.apply_rope(k, start_pos=0)
 
     # dot product between position 2 and 0 (offset=2)
     dot_a = (q_rot[0, 0, 2] * k_rot[0, 0, 0]).sum()
@@ -334,8 +357,8 @@ def test_rotary_relative_position_via_dot_product() -> None:
     k2 = torch.zeros_like(k)
     q2[0, 0, 12] = q[0, 0, 2]
     k2[0, 0, 10] = k[0, 0, 0]
-    q2_rot = rope.apply_rope(q2, T=max_seq_len)
-    k2_rot = rope.apply_rope(k2, T=max_seq_len)
+    q2_rot = rope.apply_rope(q2, start_pos=0)
+    k2_rot = rope.apply_rope(k2, start_pos=0)
     dot_b = (q2_rot[0, 0, 12] * k2_rot[0, 0, 10]).sum()
 
     torch.testing.assert_close(dot_a, dot_b)
