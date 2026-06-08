@@ -32,6 +32,7 @@ def config() -> NeoGPTConfig:
         rope_base=10000,
         mlp_hidden_dim=256,
         n_kv_head=2,
+        tokenizer="gpt2",
     )
 
 
@@ -135,6 +136,7 @@ def _neogpt_config(**overrides: int) -> NeoGPTConfig:
         "rope_base": 10000,
         "mlp_hidden_dim": 256,
         "n_kv_head": 2,
+        "tokenizer": "gpt2",
     }
     base.update(overrides)
     return NeoGPTConfig(**base)  # type: ignore[arg-type]

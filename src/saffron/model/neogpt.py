@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from ..constants import LABEL_IGNORE_INDEX
-from ..tokenizer import TiktokenTokenizer, Tokenizer
+from ..tokenizer import Tokenizer
 from .base_model import BaseModel
 from .config import NeoGPTConfig
 
@@ -178,7 +178,7 @@ class NeoGPT(BaseModel):
             torch.nn.init.normal_(module.weight, mean=0, std=std)
 
     def _get_tokenizer(self) -> Tokenizer:
-        return TiktokenTokenizer("gpt2")
+        return Tokenizer.from_name(self.config.tokenizer)
 
     def forward(
         self,

@@ -58,6 +58,10 @@ class TiktokenTokenizer(Tokenizer):
     def __init__(self, name: str) -> None:
         self._name = name
         self._enc = tiktoken.get_encoding(name)
+        # Highest "regular" (mergeable) token id. Ids above this are special tokens
+        # or unallocated gaps in the vocab, which the model can sample (especially
+        # early in training) but tiktoken cannot decode.
+        self._max_decodable_token = max(self._enc._mergeable_ranks.values())  # pyright: ignore[reportPrivateUsage]
 
     @property
     def name(self) -> str:
@@ -71,6 +75,8 @@ class TiktokenTokenizer(Tokenizer):
         return self._enc.encode_ordinary(text)
 
     def decode(self, tokens: list[int]) -> str:
+        # Drop special / unallocated token ids; tiktoken raises KeyError on them.
+        tokens = [t for t in tokens if t <= self._max_decodable_token]
         return self._enc.decode(tokens)
 
     @property

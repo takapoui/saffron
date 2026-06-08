@@ -1,6 +1,7 @@
 {
     "model": {
         "model_type": "neogpt",
+        "tokenizer": "gpt2",
         "vocab_size": 50257,
         "n_embd": 768,
         "block_size": 1024,
