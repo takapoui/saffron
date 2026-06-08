@@ -36,8 +36,12 @@ class RotaryEmbedding(nn.Module):
         self.register_buffer("cos_cache", emb.cos())
         self.register_buffer("sin_cache", emb.sin())
 
-    def apply_rope(self, x: torch.Tensor, T: int) -> torch.Tensor:
-        cos, sin = self.cos_cache[:T], self.sin_cache[:T]
+    def apply_rope(self, x: torch.Tensor, start_pos: int) -> torch.Tensor:
+        T = x.shape[-2]
+        cos, sin = (
+            self.cos_cache[start_pos : start_pos + T],
+            self.sin_cache[start_pos : start_pos + T],
+        )
         cos, sin = cos[None, None, :, :], sin[None, None, :, :]  # (T, d_head) -> (1, 1, T, d_head)
         return x * cos + _rotate_half(x) * sin
 
@@ -79,8 +83,8 @@ class CausalSelfAttention(nn.Module):
         k = k.reshape(B, T, self.n_kv_head, self.head_dim).transpose(1, 2)
         v = v.reshape(B, T, self.n_kv_head, self.head_dim).transpose(1, 2)
 
-        q = self.rotary.apply_rope(q, T)
-        k = self.rotary.apply_rope(k, T)
+        q = self.rotary.apply_rope(q, start_pos=0)
+        k = self.rotary.apply_rope(k, start_pos=0)
 
         if attention_mask is not None:
             # combine (B, T) padding mask with causal mask; can't use is_causal alongside attn_mask
