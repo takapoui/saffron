@@ -1,6 +1,15 @@
 # saffron
 
-A PyTorch codebase for studying small-scale language models end-to-end: pretraining, fine-tuning, and post-training. The goal is to take a model far enough that it does something tangible, like simple math, while keeping every stage of the stack visible and modifiable: architecture (GPT-2 from scratch, HuggingFace adapters for larger models), training loop (DDP, `torch.compile`, mixed-precision, MFU tracking, wandb logging), evaluation (loss, Hellaswag, GSM8K, generation samples), data pipelines, teacher distillation (vLLM with rejection sampling), and RL post-training (GRPO with reward design). Minimal and explicit by design; external dependencies are used when they're not the part being studied.
+A PyTorch codebase for studying small-scale language models end-to-end: pretraining, fine-tuning, and post-training. The goal is to keep every stage of the stack visible and modifiable, from pretraining a model from scratch to taking a capable open base model far enough to do math reasoning (GSM8K, Countdown):
+
+- **Architecture**: GPT-2 from scratch; a modern Llama-style variant (RoPE, RMSNorm, SwiGLU, grouped-query attention, KV-cache generation); HuggingFace adapters for larger models
+- **Training loop**: DDP, `torch.compile`, mixed-precision, MFU tracking, wandb logging
+- **Evaluation**: loss, Hellaswag, GSM8K, generation samples
+- **Data pipelines**: tokenized sharded pretraining data, SFT and RL prep
+- **Teacher distillation**: vLLM with rejection sampling
+- **RL post-training**: GRPO with reward design
+
+Minimal and explicit by design; external dependencies are used when they're not the part being studied.
 
 The experiments below track the project's progress. Built as a personal learning project, where each experiment is a way to understand a piece of the stack in depth. The codebase is kept readable enough that someone else could follow along. Cluster experiments run on [Lambda Labs](https://lambda.ai/) GPUs.
 
@@ -54,7 +63,7 @@ make install-vllm     # additionally installs vllm (only needed for teacher samp
 
 **Pretraining:**
 ```bash
-.venv/bin/python scripts/prep_pretrain_data.py --config configs/pretraining/gpt2_small.json
+.venv/bin/python scripts/prep_pretrain_data.py --config configs/pretraining/neogpt.json
 ```
 
 Each config file contains a `prep` section with dataset and tokenization settings alongside the training config.
@@ -85,10 +94,10 @@ Each config file contains a `prep` section with dataset and tokenization setting
 **Pretraining:**
 ```bash
 # single device (CPU, MPS, or CUDA)
-.venv/bin/python scripts/run_train.py --config configs/pretraining/gpt2_small.json
+.venv/bin/python scripts/run_train.py --config configs/pretraining/neogpt.json
 
 # multi GPU (e.g. 8 GPUs)
-.venv/bin/python -m torch.distributed.run --nproc_per_node=8 scripts/run_train.py --config configs/pretraining/gpt2_small.json
+.venv/bin/python -m torch.distributed.run --nproc_per_node=8 scripts/run_train.py --config configs/pretraining/neogpt.json
 ```
 
 **SFT:**
