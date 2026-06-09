@@ -11,6 +11,7 @@ The experiments below track the project's progress. Built as a personal learning
 | Experiment | Model | Dataset | Hellaswag | Val Loss | MFU | Hardware |
 |---|---|---|---|---|---|---|
 | [001 — Baseline](experiments/001_gpt2_small_baseline.md) | GPT-2 small (124M) | fineweb-edu 10B | 30.4% | 3.07 | 33% | 8x A100 SXM4 40GB |
+| [006 — NeoGPT architecture](experiments/006_neogpt_architecture.md) | NeoGPT (114M) | fineweb-edu 10B | 30.9% | 3.05 | 31% | 8x A100 SXM4 40GB |
 
 ### SFT
 
